@@ -15,7 +15,12 @@
 #include "utilidades.h"
 #include "tramos.h"
 
+typedef enum {
+    PROTOCOLO_NUEVO,
+    PROTOCOLO_VIEJO
+} ProtocoloMode;
 
+static ProtocoloMode protocoloActual = PROTOCOLO_NUEVO;
 
 extern uint32_t estado_maquina;
 extern volatile bool transmitirDatos;
@@ -240,6 +245,15 @@ bool AnalizarComando(const char* Buf, uint32_t Len, char* comando, float* param1
     }
 
     return true;
+}
+
+bool ProcesarComandoNuevo(uint8_t* Buf, uint32_t Len) {
+    char comando[CMD_LENGTH + 1];
+    float param1, param2;
+    if (AnalizarComando(Buf, Len, comando, &param1, &param2)) {
+        return ProcesarComando(comando, param1, param2);
+    }
+    return false;
 }
 
 // Protocolo VIEJO:
