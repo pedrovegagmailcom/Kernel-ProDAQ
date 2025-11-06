@@ -280,11 +280,12 @@ char inputTramos[15000];
 char inputString[15000];
 
 
-void SerialEvent() {
+void serialEvent() {
     static bool stringComplete = false;
     static uint32_t i = 0;
 
     Serial.println("debug");
+    return;
     while (true) {
         // 1) Acumular caracteres hasta '\n'
         while (Serial.available() && i < sizeof(inputString) - 1) {
