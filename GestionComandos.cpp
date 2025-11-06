@@ -285,9 +285,7 @@ bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len) {
 
 // Función unificada para procesar el mensaje recibido según el protocolo activo
 bool ProcesarMensaje(uint8_t* Buf, uint32_t Len) {
-
-	printf("Mensaje de debug: ");
-
+	
     if (protocoloActual == PROTOCOLO_NUEVO) {
         // Si se recibe el comando "RI\r", cambiar a modo antiguo.
         if (Len == 3 && strncmp((char*)Buf, "RI\r", 3) == 0) {

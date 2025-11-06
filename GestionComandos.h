@@ -18,7 +18,7 @@ typedef struct {
     int8_t codigo;
 } ComandoMap;
 
-
+bool ProcesarMensaje(uint8_t* Buf, uint32_t Len);
 bool AnalizarComando(const uint8_t* Buf, uint32_t Len, char* comando, float* param1, float* param2);
 bool ProcesarComando(char* comando, float param1, float param2);
 void handleSerialLine(const char* receivedLine);

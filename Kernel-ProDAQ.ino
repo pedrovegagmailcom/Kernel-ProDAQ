@@ -222,13 +222,13 @@ digitalWrite(LED_BUILTIN, HIGH);
 LTCdac.setOutput(0, 0);
 LTCdac.setOutput(1, 0);
 
-delay(4000);
+delay(100);
 
 digitalWrite(LED_BUILTIN, LOW);
 LTCdac.setOutput(0, 65535);
 LTCdac.setOutput(1, 65535);
 
-delay(4000);
+delay(100);
 
  
 }
@@ -284,6 +284,7 @@ void SerialEvent() {
     static bool stringComplete = false;
     static uint32_t i = 0;
 
+    Serial.println("debug");
     while (true) {
         // 1) Acumular caracteres hasta '\n'
         while (Serial.available() && i < sizeof(inputString) - 1) {
@@ -299,7 +300,9 @@ void SerialEvent() {
 
         // 2) Si se recibió la línea completa, la procesamos
         if (stringComplete) {
-            handleSerialLine(inputString);
+            ProcesarMensaje((uint8_t*)inputString, i);
+            Serial.println(inputString);
+            //handleSerialLine(inputString);
 
             // Reiniciar para el siguiente comando
             i = 0;
