@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string>
 
 #include "GestionComandos.h"
 #include "utilidades.h"
@@ -97,7 +98,7 @@ void CommandRate(float param1, float param2) {
 
 
 void CommandRI(float param1, float param2) {
-	
+	Serial.println("ProDAQ v0.1");
 }
 
 
@@ -211,7 +212,7 @@ bool VerificarFormato(const char* Buf, uint32_t Len) {
 }
 
 // Función para analizar comandos
-bool AnalizarComando(const char* Buf, uint32_t Len, char* comando, float* param1, float* param2) {
+bool AnalizarComando(char* Buf, uint32_t Len, char* comando, float* param1, float* param2) {
     // Comprobar el formato del comando
     if (!VerificarFormato(Buf, Len)) {
         return false;
@@ -250,7 +251,7 @@ bool AnalizarComando(const char* Buf, uint32_t Len, char* comando, float* param1
 bool ProcesarComandoNuevo(uint8_t* Buf, uint32_t Len) {
     char comando[CMD_LENGTH + 1];
     float param1, param2;
-    if (AnalizarComando(Buf, Len, comando, &param1, &param2)) {
+    if (AnalizarComando((char*)Buf, Len, comando, &param1, &param2)) {
         return ProcesarComando(comando, param1, param2);
     }
     return false;
@@ -261,6 +262,8 @@ bool ProcesarComandoNuevo(uint8_t* Buf, uint32_t Len) {
 // Ejemplos: "WF\r" o "WV1000\r" (donde WV modifica la velocidad a 1000mm/min)
 bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len) {
     char mensaje[100];
+
+    
     if (Len >= sizeof(mensaje))
         return false;
     memcpy(mensaje, Buf, Len);
@@ -280,6 +283,7 @@ bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len) {
     if (l > 2) {
         param1 = atof(mensaje + 2);
     }
+    
     return ProcesarComando(comando, param1, param2);
 }
 
@@ -287,8 +291,10 @@ bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len) {
 bool ProcesarMensaje(uint8_t* Buf, uint32_t Len) {
 	
     if (protocoloActual == PROTOCOLO_NUEVO) {
+        
         // Si se recibe el comando "RI\r", cambiar a modo antiguo.
-        if (Len == 3 && strncmp((char*)Buf, "RI\r", 3) == 0) {
+        if (Len == 2 && strncmp((char*)Buf, "RI", 2) == 0) {
+            
             protocoloActual = PROTOCOLO_VIEJO;
             return ProcesarComandoViejo(Buf, Len);
         }
