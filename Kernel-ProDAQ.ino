@@ -311,7 +311,7 @@ void SerialEvent() {
             memset(inputString, 0, sizeof(inputString));
         }
 
-        osDelay(1);
+        //osDelay(1);
     }
 }
 

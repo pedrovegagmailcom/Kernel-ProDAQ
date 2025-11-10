@@ -98,62 +98,62 @@ void CommandRate(float param1, float param2) {
 
 
 void CommandRI(float param1, float param2) {
-	Serial.println("ProDAQ v0.1");
+	Serial.println("RABBIT");
 }
 
 
 void CommandRC(float param1, float param2) {
-	
+	Serial.println("1000");
 }
 
 void CommandRX(float param1, float param2) {
-	
+	Serial.println("0");
 }
 
 
 void CommandWM(float param1, float param2) {
-	
+	Serial.println("");
 }
 
 void CommandRV(float param1, float param2) {
-	
+	Serial.println("500");
 }
 
 
 void CommandWV(float param1, float param2) {
-	
+	Serial.println("");
 }
 
 void CommandWE(float param1, float param2) {
-	
+	Serial.println("");
 }
 
 void CommandWI(float param1, float param2) {
-	
+	Serial.println("");
 }
 
 void CommandR1(float param1, float param2) {
-	
+	Serial.println("0.0");
 }
 
 void CommandR2(float param1, float param2) {
-	
+	Serial.println("0.0");
 }
 
 void CommandRS(float param1, float param2) {
-	
+	Serial.println("\0\0");
 }
 
 void CommandRH(float param1, float param2) {
-	
+	Serial.println("0");
 }
 
 void CommandWB(float param1, float param2) {
-	
+	Serial.println("");
 }
 
 void CommandWT(float param1, float param2) {
-	
+	Serial.println("");
 }
 
 
