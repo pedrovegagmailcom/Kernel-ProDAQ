@@ -101,7 +101,7 @@ class LS7366
 	void load_counter();
 	void load_OTR();
   private:
-	int CS_pin;
+	
 	byte datawidth;
 	long left_extend_MSB(long val);
 };

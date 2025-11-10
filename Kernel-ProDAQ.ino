@@ -22,7 +22,7 @@ using namespace rtos;
 
 LTC2602 LTCdac;
 //MCP23S08 mcp(PC_15);
-//LS7366 Encoder;
+LS7366 Encoder;
 
 //IO IOsystem;
 
@@ -48,7 +48,7 @@ void setup() {
   LTCdac.begin();
   //mcp.begin();
   //IOsystem.begin();
-  //Encoder.begin();
+  Encoder.begin();
  
 
   
@@ -311,7 +311,7 @@ void SerialEvent() {
             memset(inputString, 0, sizeof(inputString));
         }
 
-        //osDelay(1);
+        osDelay(1);
     }
 }
 

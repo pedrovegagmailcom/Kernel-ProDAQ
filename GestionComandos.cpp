@@ -12,6 +12,8 @@
 #include <stdint.h>
 #include <string>
 
+#include "LS7366.h"
+
 #include "GestionComandos.h"
 #include "utilidades.h"
 #include "tramos.h"
@@ -27,7 +29,7 @@ extern uint32_t estado_maquina;
 extern volatile bool transmitirDatos;
 extern volatile uint32_t dataRate;
 
-
+extern LS7366 Encoder;
 
 void CommandWF(float param1, float param2) {
 
@@ -137,11 +139,12 @@ void CommandR1(float param1, float param2) {
 }
 
 void CommandR2(float param1, float param2) {
-	Serial.println("0.0");
+    unsigned long  valor = Encoder.read_counter();
+	Serial.println(valor, 4);
 }
 
 void CommandRS(float param1, float param2) {
-	Serial.println("\0\0");
+	Serial.println("\0\0\0");
 }
 
 void CommandRH(float param1, float param2) {

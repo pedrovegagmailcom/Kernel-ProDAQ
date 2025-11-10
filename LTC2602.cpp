@@ -8,7 +8,7 @@ LTC2602::LTC2602(uint8_t csPin) : _csPin(csPin) {
 // Inicializar el LTC2602 (SPI, pin CS, etc.)
 void LTC2602::begin(uint32_t spiClock) {
     // Iniciar SPI
-    SPI.begin();
+    //SPI.begin();
 
     // Configurar el pin CS como salida
     //pinMode(_csPin, OUTPUT);
@@ -21,8 +21,7 @@ void LTC2602::begin(uint32_t spiClock) {
     // Frecuencia por defecto 4MHz, se puede ajustar si se requiere
     //SPISettings spiSettings(8000000, MSBFIRST, SPI_MODE3);
     //SPI.beginTransaction(SPISettings(spiClock, MSBFIRST, SPI_MODE0));
-    SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE3));
-}
+}   
 
 // Escribir y actualizar un canal (0 = A, 1 = B)
 void LTC2602::setOutput(uint8_t channel, uint16_t value) {
@@ -33,6 +32,8 @@ void LTC2602::setOutput(uint8_t channel, uint16_t value) {
     // EJ:
     //    Write & Update DAC A: 0x30 (0b0011_0000)
     //    Write & Update DAC B: 0x31 (0b0011_0001)
+
+    SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE3));
 
     uint8_t command = (CMD_WRITE_INPUT_UPDATE_SINGLE << 4) | (channel & 0x01);
 
@@ -51,4 +52,6 @@ void LTC2602::setOutput(uint8_t channel, uint16_t value) {
 
     // Desactivar CS
     digitalWrite(PB_8, HIGH);
+
+    SPI.endTransaction();
 }
