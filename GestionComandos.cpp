@@ -13,6 +13,8 @@
 #include <string>
 
 #include "LS7366.h"
+#include "IO.h"
+#include "alarmas.h"
 
 #include "GestionComandos.h"
 #include "utilidades.h"
@@ -30,6 +32,8 @@ extern volatile bool transmitirDatos;
 extern volatile uint32_t dataRate;
 
 extern LS7366 Encoder;
+extern IO IOsystem;
+extern Alarmas alarmas;
 
 void CommandWF(float param1, float param2) {
 
@@ -144,7 +148,15 @@ void CommandR2(float param1, float param2) {
 }
 
 void CommandRS(float param1, float param2) {
-	Serial.println("\0\0\0");
+	alarmas.comprobar();
+
+    volatile uint8_t alarmasByte = alarmas.getAlarmas();
+    volatile uint8_t statusByte  = alarmas.getStatus();
+    
+    // Delphi pide 3 bytes; usa solo el primero (alarmas)
+    Serial.write(alarmasByte);   // buf[1] en Delphi
+    Serial.write(statusByte);    // buf[2] (por si otra función lo usa)
+    Serial.write('\r');          // buf[3] terminador
 }
 
 void CommandRH(float param1, float param2) {

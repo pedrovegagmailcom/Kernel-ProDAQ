@@ -16,34 +16,47 @@ void IO::begin(uint32_t spiClock) {
  
     
 
-    //initMCP(CS1, true);   // Entradas 0–7
-    //initMCP(CS2, true);   // Entradas 8–11
+    initMCP(CS1, true);   // Entradas 0–7
+    initMCP(CS2, true);   // Entradas 8–11
     initMCP(CS3, false);  // Salidas 0–7
     initMCP(CS4, false);  // Salidas 8–11
 
 
 
     // Habilitar pull-ups en las entradas
-    //writeRegister(CS1, GPPU, 0xFF);
-    //writeRegister(CS2, GPPU, 0x0F);
+    writeRegister(CS1, GPPU, 0xFF);
+    writeRegister(CS2, GPPU, 0x0F);
 }
 
 // ===================== MÉTODOS AUXILIARES =====================
 
 void IO::initMCP(pin_size_t  csPin, bool asInput) {
-    Serial.println(csPin);
+
     pinMode(csPin, OUTPUT);
 
+    
+    SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
     digitalWrite(csPin, LOW);
     SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));
-    SPI.transfer(IODIR);	//set address pointer to first register
-	SPI.transfer(0xFF);				// reset first register
-	for (uint8_t i = 0; i < OLAT; i++) {
-		SPI.transfer(0x00);			// reset other 10 registers
-	}
-    SPI.endTransaction();
+    SPI.transfer(MCP23S08_WRITE);   // OPCODE write
+    SPI.transfer(IODIR);            // Dirección inicial 0x00
 
+    SPI.transfer(0xFF);             // IODIR (por defecto son entradas)
+    SPI.transfer(0x00);             // IPOL
+    SPI.transfer(0x00);             // GPINTEN
+    SPI.transfer(0x00);             // DEFVAL
+    SPI.transfer(0x00);             // INTCON
+    SPI.transfer(0x00);             // IOCON
+    SPI.transfer(0x00);             // GPPU
+    SPI.transfer(0x00);             // INTF
+    SPI.transfer(0x00);             // INTCAP
+    SPI.transfer(0x00);             // GPIO
+    SPI.transfer(0x00);             // OLAT
+
+    SPI.endTransaction();
     digitalWrite(csPin, HIGH);
+
+    
     
     // Configurar el registro IOCON para deshabilitar operación secuencial
     writeRegister(csPin, IOCON, 0x30);
@@ -58,22 +71,26 @@ void IO::initMCP(pin_size_t  csPin, bool asInput) {
 }
 
 void IO::writeRegister(pin_size_t  csPin, uint8_t reg, uint8_t value) {
-    SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));
+    SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));
+
     digitalWrite(csPin, LOW);
     SPI.transfer(MCP23S08_WRITE); 
     SPI.transfer(reg);
     SPI.transfer(value);
     digitalWrite(csPin, HIGH);
+
     SPI.endTransaction();
 }
 
 uint8_t IO::readRegister(pin_size_t  csPin, uint8_t reg) {
-    SPI.beginTransaction(SPISettings(10000000, MSBFIRST, SPI_MODE0));    
+    SPI.beginTransaction(SPISettings(1000000, MSBFIRST, SPI_MODE0));    
+
     digitalWrite(csPin, LOW);
     SPI.transfer(MCP23S08_READ);
     SPI.transfer(reg);
     uint8_t val = SPI.transfer(0x00);
     digitalWrite(csPin, HIGH);
+    
     SPI.endTransaction();
     return val;
 }
@@ -93,9 +110,7 @@ void IO::writeOutputs(uint16_t values) {
     uint8_t outHigh = (values >> 8) & 0xFF;
     writeRegister(CS3, OLAT, outLow);
     writeRegister(CS4, OLAT, outHigh);
-
-    Serial.print(outLow, BIN); Serial.print(" : ");
-    Serial.println(outHigh, BIN); 
+   
 }
 
 // Cambiar una salida individual

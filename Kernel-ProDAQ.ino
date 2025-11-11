@@ -15,6 +15,7 @@ using namespace rtos;
 #include "LTC2602.h"
 #include "mcp23s08.h"
 #include "IO.h"
+#include "alarmas.h"
 #include "tramos.h"
 #include "GestionComandos.h"
 #include "utilidades.h"
@@ -23,8 +24,8 @@ using namespace rtos;
 LTC2602 LTCdac;
 //MCP23S08 mcp(PC_15);
 LS7366 Encoder;
-
-//IO IOsystem;
+IO IOsystem;
+Alarmas alarmas(IOsystem);
 
 Thread RecepcionComms;
 Thread TransmisionComms;
@@ -47,10 +48,10 @@ void setup() {
   
   LTCdac.begin();
   //mcp.begin();
-  //IOsystem.begin();
+  IOsystem.begin();
   Encoder.begin();
- 
-
+  alarmas.inicializar();
+  
   
   
 /*
@@ -218,6 +219,7 @@ void loop_org() {
 
 
 void loop() {
+  /*
 digitalWrite(LED_BUILTIN, HIGH);
 //LTCdac.setOutput(0, 0);
 //LTCdac.setOutput(1, 0);
@@ -229,7 +231,7 @@ digitalWrite(LED_BUILTIN, LOW);
 //LTCdac.setOutput(1, 65535);
 
 delay(10);
-
+*/
  
 }
 
@@ -311,7 +313,7 @@ void SerialEvent() {
             memset(inputString, 0, sizeof(inputString));
         }
 
-        osDelay(1);
+        //osDelay(1);
     }
 }
 
