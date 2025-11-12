@@ -11,10 +11,12 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string>
+#include <math.h>
 
 #include "LS7366.h"
 #include "IO.h"
 #include "alarmas.h"
+#include "LTC2602.h"
 
 #include "GestionComandos.h"
 #include "utilidades.h"
@@ -34,24 +36,111 @@ extern volatile uint32_t dataRate;
 extern LS7366 Encoder;
 extern IO IOsystem;
 extern Alarmas alarmas;
+extern LTC2602 LTCdac;
+
+namespace {
+
+constexpr float VELOCIDAD_MAX_MM_MIN = 500.0f;
+constexpr uint8_t DAC_CANAL_BIPOLAR = 1; // Canal B del LTC2602
+constexpr uint16_t DAC_MID_CODE = 32768U;
+
+float velocidadConsigna = 0.0f;
+
+float normalizarVelocidad(float valor) {
+    if (!isfinite(valor)) {
+        return 0.0f;
+    }
+    if (valor < 0.0f) {
+        valor = 0.0f;
+    }
+    if (valor > VELOCIDAD_MAX_MM_MIN) {
+        valor = VELOCIDAD_MAX_MM_MIN;
+    }
+    return valor / VELOCIDAD_MAX_MM_MIN;
+}
+
+void actualizarSalidaVelocidad() {
+    float velocidad = velocidadConsigna;
+
+    bool stop = (estado_maquina & (1UL << 2)) != 0;
+    bool forward = (estado_maquina & (1UL << 0)) != 0;
+    bool reverse = (estado_maquina & (1UL << 1)) != 0;
+
+    if (stop || (!forward && !reverse)) {
+        velocidad = 0.0f;
+    }
+
+    float fraccion = normalizarVelocidad(velocidad);
+    int32_t delta = (int32_t)lrintf(fraccion * 32767.0f);
+
+    int32_t codigo = DAC_MID_CODE;
+    if (forward && !reverse) {
+        codigo += delta;
+    } else if (reverse && !forward) {
+        codigo -= delta;
+    } else {
+        codigo = DAC_MID_CODE;
+    }
+
+    if (codigo < 0) {
+        codigo = 0;
+    } else if (codigo > 65535) {
+        codigo = 65535;
+    }
+
+    LTCdac.setOutput(DAC_CANAL_BIPOLAR, static_cast<uint16_t>(codigo));
+}
+
+float convertirParametroVelocidad(float parametro) {
+    if (!isfinite(parametro)) {
+        return 0.0f;
+    }
+
+    float parteEntera = 0.0f;
+    float fraccion = modff(parametro, &parteEntera);
+
+    if (fraccion == 0.0f) {
+        // Valor entero: puede provenir del protocolo viejo (sin punto decimal)
+        if (parametro > VELOCIDAD_MAX_MM_MIN) {
+            parametro /= 10.0f;
+        }
+    }
+
+    if (parametro < 0.0f) {
+        parametro = 0.0f;
+    }
+    if (parametro > VELOCIDAD_MAX_MM_MIN) {
+        parametro = VELOCIDAD_MAX_MM_MIN;
+    }
+
+    return parametro;
+}
+
+} // namespace
 
 void CommandWF(float param1, float param2) {
 
-	CambiarBit(&estado_maquina, 0, 1);
-	CambiarBit(&estado_maquina, 1, 0);
-	CambiarBit(&estado_maquina, 2, 0);
+        CambiarBit(&estado_maquina, 0, 1);
+        CambiarBit(&estado_maquina, 1, 0);
+        CambiarBit(&estado_maquina, 2, 0);
+
+        actualizarSalidaVelocidad();
 }
 
 void CommandWR(float param1, float param2) {
-	CambiarBit(&estado_maquina, 0, 0);
-	CambiarBit(&estado_maquina, 1, 1);
-	CambiarBit(&estado_maquina, 2, 0);
+        CambiarBit(&estado_maquina, 0, 0);
+        CambiarBit(&estado_maquina, 1, 1);
+        CambiarBit(&estado_maquina, 2, 0);
+
+        actualizarSalidaVelocidad();
 }
 
 void CommandWS(float param1, float param2) {
-	CambiarBit(&estado_maquina, 0, 0);
-	CambiarBit(&estado_maquina, 1, 0);
-	CambiarBit(&estado_maquina, 2, 1);
+        CambiarBit(&estado_maquina, 0, 0);
+        CambiarBit(&estado_maquina, 1, 0);
+        CambiarBit(&estado_maquina, 2, 1);
+
+        actualizarSalidaVelocidad();
 }
 
 
@@ -127,7 +216,9 @@ void CommandRV(float param1, float param2) {
 
 
 void CommandWV(float param1, float param2) {
-	Serial.println("");
+        velocidadConsigna = convertirParametroVelocidad(param1);
+        actualizarSalidaVelocidad();
+        Serial.println("");
 }
 
 void CommandWE(float param1, float param2) {
@@ -139,7 +230,7 @@ void CommandWI(float param1, float param2) {
 }
 
 void CommandR1(float param1, float param2) {
-	Serial.println("0.0");
+        Serial.println(velocidadConsigna, 2);
 }
 
 void CommandR2(float param1, float param2) {
