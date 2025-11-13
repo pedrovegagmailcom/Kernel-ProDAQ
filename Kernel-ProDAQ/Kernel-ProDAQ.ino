@@ -22,7 +22,6 @@ using namespace rtos;
 
 
 LTC2602 LTCdac;
-//MCP23S08 mcp(PC_15);
 LS7366 Encoder;
 IO IOsystem;
 Alarmas alarmas(IOsystem);
@@ -47,7 +46,6 @@ void setup() {
   Serial.println("Booting Kernel...");
   
   LTCdac.begin();
-  //mcp.begin();
   IOsystem.begin();
   Encoder.begin();
   alarmas.inicializar();
@@ -206,19 +204,7 @@ void loop_org() {
 
 
 void loop() {
-  /*
-digitalWrite(LED_BUILTIN, HIGH);
-//LTCdac.setOutput(0, 0);
-//LTCdac.setOutput(1, 0);
-
-delay(10);
-
-digitalWrite(LED_BUILTIN, LOW);
-//LTCdac.setOutput(0, 65535);
-//LTCdac.setOutput(1, 65535);
-
-delay(10);
-*/
+ 
  
 }
 
@@ -276,7 +262,7 @@ void SerialEvent() {
     
     
     while (true) {
-        // 1) Acumular caracteres hasta '\n'
+        // 1) Acumular caracteres hasta '\r'
         while (Serial.available() && i < sizeof(inputString) - 1) {
             char inChar = (char)Serial.read();
             if (inChar == '\r') {

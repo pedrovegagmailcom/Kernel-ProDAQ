@@ -256,7 +256,7 @@ void LS7366::load_OTR()
 
 long LS7366::left_extend_MSB(long val)
 {
-	long value_to_return;
+	long value_to_return = 0;
 	long MSB;
 	if (datawidth == 4 )    //Nothing to do in 4 byte mode
 	{
