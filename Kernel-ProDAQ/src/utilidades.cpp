@@ -6,7 +6,7 @@
  */
 
 #include <stdint.h>
-#include "./inc/modelo.h"
+#include "modelo.h"
 
 void CambiarBit(uint32_t *var, int bit, int estado) {
     if (estado) {
