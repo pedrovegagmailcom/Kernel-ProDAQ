@@ -43,8 +43,13 @@ namespace {
 constexpr float VELOCIDAD_MAX_MM_MIN = 500.0f;
 constexpr uint8_t DAC_CANAL_BIPOLAR = 1; // Canal B del LTC2602
 constexpr uint16_t DAC_MID_CODE = 32768U;
+constexpr float DAC_MAX_VOLTAGE = 10.0f; // Rango bipolar ±10V
+constexpr float DAC_OFFSET_LIMIT_VOLTS = 2.0f; // Ajuste máximo permitido por software
+constexpr float DAC_COUNTS_PER_VOLT = 65535.0f / (DAC_MAX_VOLTAGE * 2.0f);
 
 float velocidadConsigna = 0.0f;
+float dacZeroOffsetVolts = 0.0f;
+int32_t dacZeroOffsetCounts = 0;
 
 float normalizarVelocidad(float valor) {
     if (!isfinite(valor)) {
@@ -82,6 +87,8 @@ void actualizarSalidaVelocidad() {
         codigo = DAC_MID_CODE;
     }
 
+    codigo += dacZeroOffsetCounts;
+
     if (codigo < 0) {
         codigo = 0;
     } else if (codigo > 65535) {
@@ -89,6 +96,21 @@ void actualizarSalidaVelocidad() {
     }
 
     LTCdac.setOutput(DAC_CANAL_BIPOLAR, static_cast<uint16_t>(codigo));
+}
+
+void actualizarOffsetDAC(float offsetVolts) {
+    if (!isfinite(offsetVolts)) {
+        return;
+    }
+
+    if (offsetVolts > DAC_OFFSET_LIMIT_VOLTS) {
+        offsetVolts = DAC_OFFSET_LIMIT_VOLTS;
+    } else if (offsetVolts < -DAC_OFFSET_LIMIT_VOLTS) {
+        offsetVolts = -DAC_OFFSET_LIMIT_VOLTS;
+    }
+
+    dacZeroOffsetVolts = offsetVolts;
+    dacZeroOffsetCounts = static_cast<int32_t>(lrintf(offsetVolts * DAC_COUNTS_PER_VOLT));
 }
 
 float convertirParametroVelocidad(float parametro) {
@@ -224,6 +246,16 @@ void CommandWV(float param1, float param2) {
         Serial.println("");
 }
 
+void CommandWO(float param1, float param2) {
+        actualizarOffsetDAC(param1);
+        actualizarSalidaVelocidad();
+        Serial.println(dacZeroOffsetVolts, 3);
+}
+
+void CommandROffset(float param1, float param2) {
+        Serial.println(dacZeroOffsetVolts, 3);
+}
+
 void CommandWE(float param1, float param2) {
 	Serial.println("");
 }
@@ -281,16 +313,18 @@ ComandoMap comandoMaps[] = {
 	{"RC", CommandRC, 11},
 	{"RX", CommandRX, 12}, // Hay extensometro ?
 	{"WM", CommandWM, 13}, // Modo remoto
-	{"RV", CommandRV, 14}, // Velocdidad maxima ?
-	{"WV", CommandWV, 15},
-	{"WI", CommandWV, 16},
-	{"R1", CommandR1, 17},
-	{"R2", CommandR2, 18},
-	{"RS", CommandRS, 19},
-	{"RH", CommandRH, 20}, // Ensayo en curso ?
-	{"WB", CommandRS, 21}, // Alarma baja velo
-	{"WT", CommandWT, 22},
-	{"WE", CommandWE, 23},
+        {"RV", CommandRV, 14}, // Velocdidad maxima ?
+        {"WV", CommandWV, 15},
+        {"WI", CommandWV, 16},
+        {"WO", CommandWO, 17}, // Ajuste offset analógico en volts
+        {"RO", CommandROffset, 18},
+        {"R1", CommandR1, 19},
+        {"R2", CommandR2, 20},
+        {"RS", CommandRS, 21},
+        {"RH", CommandRH, 22}, // Ensayo en curso ?
+        {"WB", CommandRS, 23}, // Alarma baja velo
+        {"WT", CommandWT, 24},
+        {"WE", CommandWE, 25},
     {NULL, NULL, -1} // Marca el fin de la lista
 };
 
