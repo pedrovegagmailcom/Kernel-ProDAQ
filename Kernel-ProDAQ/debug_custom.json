@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Portenta H7 (ST-Link, OpenOCD 0.12+)",
+      "type": "cortex-debug",
+      "request": "attach",
+
+      "cwd": "${workspaceRoot}",
+      "executable": "C:\\Users\\pedro.PCPEDRONET\\AppData\\Local\\arduino\\sketches\\141F442DA2D8634C0E1DD8B364B0ADD6\\Kernel-ProDAQ.ino.elf",
+
+      "servertype": "openocd",
+      "serverpath": "C:\\Users\\pedro.PCPEDRONET\\AppData\\Local\\Arduino15\\packages\\arduino\\tools\\openocd\\xpack-openocd-0.12.0-7\\bin\\openocd.exe",
+
+      "configFiles": [
+        "interface/stlink.cfg",
+        "target/stm32h7x_dual_bank.cfg"
+      ],
+      "serverArgs": [
+        "-c", "transport select swd",
+        "-c", "adapter speed 1000",
+        "-c", "reset_config srst_only srst_nogate connect_assert_srst"
+      ],
+
+      "gdbPath": "Y:\\STM32\\xpack-arm-none-eabi-gcc-14.2.1-1.1\\bin\\arm-none-eabi-gdb.exe",
+      "svdFile": "C:\\Users\\pedro.PCPEDRONET\\AppData\\Local\\Arduino15\\packages\\arduino\\hardware\\mbed_portenta\\4.4.1\\svd\\STM32H747_CM7.svd",
+
+      "postAttachCommands": [
+        "set remote hardware-breakpoint-limit 6",
+        "set remote hardware-watchpoint-limit 4",
+        "monitor reset halt",
+        "monitor gdb_sync"
+      ]
+    }
+  ]
+}

@@ -10,36 +10,140 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string>
+#include <math.h>
+
+#include "LS7366.h"
+#include "IO.h"
+#include "alarmas.h"
+#include "LTC2602.h"
 
 #include "GestionComandos.h"
 #include "utilidades.h"
 #include "tramos.h"
 
+typedef enum {
+    PROTOCOLO_NUEVO,
+    PROTOCOLO_VIEJO
+} ProtocoloMode;
 
+static ProtocoloMode protocoloActual = PROTOCOLO_NUEVO;
 
 extern uint32_t estado_maquina;
 extern volatile bool transmitirDatos;
 extern volatile uint32_t dataRate;
 
+extern LS7366 Encoder;
+extern IO IOsystem;
+extern Alarmas alarmas;
+extern LTC2602 LTCdac;
 
+namespace {
+
+constexpr float VELOCIDAD_MAX_MM_MIN = 500.0f;
+constexpr uint8_t DAC_CANAL_BIPOLAR = 1; // Canal B del LTC2602
+constexpr uint16_t DAC_MID_CODE = 32768U;
+
+float velocidadConsigna = 0.0f;
+
+float normalizarVelocidad(float valor) {
+    if (!isfinite(valor)) {
+        return 0.0f;
+    }
+    if (valor < 0.0f) {
+        valor = 0.0f;
+    }
+    if (valor > VELOCIDAD_MAX_MM_MIN) {
+        valor = VELOCIDAD_MAX_MM_MIN;
+    }
+    return valor / VELOCIDAD_MAX_MM_MIN;
+}
+
+void actualizarSalidaVelocidad() {
+    float velocidad = velocidadConsigna;
+
+    bool stop = (estado_maquina & (1UL << 2)) != 0;
+    bool forward = (estado_maquina & (1UL << 0)) != 0;
+    bool reverse = (estado_maquina & (1UL << 1)) != 0;
+
+    if (stop || (!forward && !reverse)) {
+        velocidad = 0.0f;
+    }
+
+    float fraccion = normalizarVelocidad(velocidad);
+    int32_t delta = (int32_t)lrintf(fraccion * 32767.0f);
+
+    int32_t codigo = DAC_MID_CODE;
+    if (forward && !reverse) {
+        codigo += delta;
+    } else if (reverse && !forward) {
+        codigo -= delta;
+    } else {
+        codigo = DAC_MID_CODE;
+    }
+
+    if (codigo < 0) {
+        codigo = 0;
+    } else if (codigo > 65535) {
+        codigo = 65535;
+    }
+
+    LTCdac.setOutput(DAC_CANAL_BIPOLAR, static_cast<uint16_t>(codigo));
+}
+
+float convertirParametroVelocidad(float parametro) {
+    if (!isfinite(parametro)) {
+        return 0.0f;
+    }
+
+    float parteEntera = 0.0f;
+    float fraccion = modff(parametro, &parteEntera);
+
+    if (fraccion == 0.0f) {
+        // Valor entero: puede provenir del protocolo viejo (sin punto decimal)
+        if (parametro > VELOCIDAD_MAX_MM_MIN) {
+            parametro /= 10.0f;
+        }
+    }
+
+    if (parametro < 0.0f) {
+        parametro = 0.0f;
+    }
+    if (parametro > VELOCIDAD_MAX_MM_MIN) {
+        parametro = VELOCIDAD_MAX_MM_MIN;
+    }
+
+    return parametro;
+}
+
+} // namespace
 
 void CommandWF(float param1, float param2) {
 
-	CambiarBit(&estado_maquina, 0, 1);
-	CambiarBit(&estado_maquina, 1, 0);
-	CambiarBit(&estado_maquina, 2, 0);
+        CambiarBit(&estado_maquina, 0, 1);
+        CambiarBit(&estado_maquina, 1, 0);
+        CambiarBit(&estado_maquina, 2, 0);
+
+        actualizarSalidaVelocidad();
+        Serial.write(13);
 }
 
 void CommandWR(float param1, float param2) {
-	CambiarBit(&estado_maquina, 0, 0);
-	CambiarBit(&estado_maquina, 1, 1);
-	CambiarBit(&estado_maquina, 2, 0);
+        CambiarBit(&estado_maquina, 0, 0);
+        CambiarBit(&estado_maquina, 1, 1);
+        CambiarBit(&estado_maquina, 2, 0);
+
+        actualizarSalidaVelocidad();
+        Serial.write(13);
 }
 
 void CommandWS(float param1, float param2) {
-	CambiarBit(&estado_maquina, 0, 0);
-	CambiarBit(&estado_maquina, 1, 0);
-	CambiarBit(&estado_maquina, 2, 1);
+        CambiarBit(&estado_maquina, 0, 0);
+        CambiarBit(&estado_maquina, 1, 0);
+        CambiarBit(&estado_maquina, 2, 1);
+
+        actualizarSalidaVelocidad();
+        Serial.write(13);
 }
 
 
@@ -92,62 +196,73 @@ void CommandRate(float param1, float param2) {
 
 
 void CommandRI(float param1, float param2) {
-	
+	Serial.println("RABBIT");
 }
 
 
 void CommandRC(float param1, float param2) {
-	
+	Serial.println("1000");
 }
 
 void CommandRX(float param1, float param2) {
-	
+	Serial.println("0");
 }
 
 
 void CommandWM(float param1, float param2) {
-	
+	Serial.println("");
 }
 
 void CommandRV(float param1, float param2) {
-	
+	Serial.println("500");
 }
 
 
 void CommandWV(float param1, float param2) {
-	
+        velocidadConsigna = convertirParametroVelocidad(param1);
+        actualizarSalidaVelocidad();
+        Serial.println("");
 }
 
 void CommandWE(float param1, float param2) {
-	
+	Serial.println("");
 }
 
 void CommandWI(float param1, float param2) {
-	
+	Serial.println("");
 }
 
 void CommandR1(float param1, float param2) {
-	
+        Serial.println(velocidadConsigna, 2);
 }
 
 void CommandR2(float param1, float param2) {
-	
+    unsigned long  valor = Encoder.read_counter();
+	Serial.println(valor, 4);
 }
 
 void CommandRS(float param1, float param2) {
-	
+	alarmas.comprobar();
+
+    volatile uint8_t alarmasByte = alarmas.getAlarmas();
+    volatile uint8_t statusByte  = alarmas.getStatus();
+    
+    // Delphi pide 3 bytes; usa solo el primero (alarmas)
+    Serial.write(alarmasByte);   // buf[1] en Delphi
+    Serial.write(statusByte);    // buf[2] (por si otra función lo usa)
+    Serial.write('\r');          // buf[3] terminador
 }
 
 void CommandRH(float param1, float param2) {
-	
+	Serial.println("0");
 }
 
 void CommandWB(float param1, float param2) {
-	
+	Serial.println("");
 }
 
 void CommandWT(float param1, float param2) {
-	
+	Serial.println("");
 }
 
 
@@ -206,7 +321,7 @@ bool VerificarFormato(const char* Buf, uint32_t Len) {
 }
 
 // Función para analizar comandos
-bool AnalizarComando(const char* Buf, uint32_t Len, char* comando, float* param1, float* param2) {
+bool AnalizarComando(char* Buf, uint32_t Len, char* comando, float* param1, float* param2) {
     // Comprobar el formato del comando
     if (!VerificarFormato(Buf, Len)) {
         return false;
@@ -242,11 +357,22 @@ bool AnalizarComando(const char* Buf, uint32_t Len, char* comando, float* param1
     return true;
 }
 
+bool ProcesarComandoNuevo(uint8_t* Buf, uint32_t Len) {
+    char comando[CMD_LENGTH + 1];
+    float param1, param2;
+    if (AnalizarComando((char*)Buf, Len, comando, &param1, &param2)) {
+        return ProcesarComando(comando, param1, param2);
+    }
+    return false;
+}
+
 // Protocolo VIEJO:
 // Formato: 2 caracteres a los que puede seguir un número y siempre termina en "\r"
 // Ejemplos: "WF\r" o "WV1000\r" (donde WV modifica la velocidad a 1000mm/min)
 bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len) {
     char mensaje[100];
+
+    
     if (Len >= sizeof(mensaje))
         return false;
     memcpy(mensaje, Buf, Len);
@@ -266,17 +392,18 @@ bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len) {
     if (l > 2) {
         param1 = atof(mensaje + 2);
     }
+    
     return ProcesarComando(comando, param1, param2);
 }
 
 // Función unificada para procesar el mensaje recibido según el protocolo activo
 bool ProcesarMensaje(uint8_t* Buf, uint32_t Len) {
-
-	printf("Mensaje de debug: ");
-
+	
     if (protocoloActual == PROTOCOLO_NUEVO) {
+        
         // Si se recibe el comando "RI\r", cambiar a modo antiguo.
-        if (Len == 3 && strncmp((char*)Buf, "RI\r", 3) == 0) {
+        if (Len == 2 && strncmp((char*)Buf, "RI", 2) == 0) {
+            
             protocoloActual = PROTOCOLO_VIEJO;
             return ProcesarComandoViejo(Buf, Len);
         }

@@ -9,22 +9,25 @@
 #include <rtos.h>
 using namespace rtos;
 #include "stm32h7xx.h"
-#include "inc/modelo.h"
+#include "modelo.h"
 #include "AD7175.h"
 #include "LS7366.h"
 #include "LTC2602.h"
 #include "mcp23s08.h"
 #include "IO.h"
+#include "alarmas.h"
 #include "tramos.h"
 #include "GestionComandos.h"
 #include "utilidades.h"
 
+void SerialEvent();
+void enviarDatosSensor(DatosSensor datos);
 
 LTC2602 LTCdac;
 //MCP23S08 mcp(PC_15);
-//LS7366 Encoder;
-
-//IO IOsystem;
+LS7366 Encoder;
+IO IOsystem;
+Alarmas alarmas(IOsystem);
 
 Thread RecepcionComms;
 Thread TransmisionComms;
@@ -47,10 +50,10 @@ void setup() {
   
   LTCdac.begin();
   //mcp.begin();
-  //IOsystem.begin();
-  //Encoder.begin();
- 
-
+  IOsystem.begin();
+  Encoder.begin();
+  alarmas.inicializar();
+  
   
   
 /*
@@ -78,8 +81,8 @@ void setup() {
   //TransmisionComms.start(mbed::callback(TransmisionLoop));
   //TransmisionComms.set_priority(osPriorityHigh);
 
-  //RecepcionComms.start(mbed::callback(SerialEvent));
-  //RecepcionComms.set_priority(osPriorityHigh);
+  RecepcionComms.start(mbed::callback(SerialEvent));
+  RecepcionComms.set_priority(osPriorityHigh);
 
   
 }
@@ -148,19 +151,6 @@ void loop() {
 
 
 
-void loop() {
-
-  uint16_t entradas = 0;//IOsystem.readInputs();   // Lee las 12 entradas
-  IOsystem.writeOutputs(43690);             // Refleja las entradas en las salidas
-
-  Serial.println(entradas, BIN);  // muestra algo como 101101000111
-
-  delay(200);
-
-}
-*/
-
-
 /*
 
 void loop3() {
@@ -218,18 +208,19 @@ void loop_org() {
 
 
 void loop() {
+  /*
 digitalWrite(LED_BUILTIN, HIGH);
-LTCdac.setOutput(0, 0);
-LTCdac.setOutput(1, 0);
+//LTCdac.setOutput(0, 0);
+//LTCdac.setOutput(1, 0);
 
-delay(4000);
+delay(10);
 
 digitalWrite(LED_BUILTIN, LOW);
-LTCdac.setOutput(0, 65535);
-LTCdac.setOutput(1, 65535);
+//LTCdac.setOutput(0, 65535);
+//LTCdac.setOutput(1, 65535);
 
-delay(4000);
-
+delay(10);
+*/
  
 }
 
@@ -284,11 +275,13 @@ void SerialEvent() {
     static bool stringComplete = false;
     static uint32_t i = 0;
 
+    
+    
     while (true) {
         // 1) Acumular caracteres hasta '\n'
         while (Serial.available() && i < sizeof(inputString) - 1) {
             char inChar = (char)Serial.read();
-            if (inChar == '\n') {
+            if (inChar == '\r') {
                 stringComplete = true;
                 break;
             } else {
@@ -299,7 +292,9 @@ void SerialEvent() {
 
         // 2) Si se recibió la línea completa, la procesamos
         if (stringComplete) {
-            handleSerialLine(inputString);
+            ProcesarMensaje((uint8_t*)inputString, i);
+            
+            //handleSerialLine(inputString);
 
             // Reiniciar para el siguiente comando
             i = 0;
@@ -307,13 +302,13 @@ void SerialEvent() {
             memset(inputString, 0, sizeof(inputString));
         }
 
-        osDelay(1);
+        //osDelay(1);
     }
 }
 
 
 
-
+/*
 
 void SerialEvent__() {
   
@@ -376,3 +371,5 @@ void SerialEvent__() {
   }
 
 }
+
+*/

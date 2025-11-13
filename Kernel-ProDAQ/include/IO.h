@@ -24,13 +24,19 @@ public:
 
 private:
     
-
-    // Métodos auxiliares
-    void initMCP(pin_size_t  csPin, bool asInput);
-    void writeRegister(pin_size_t  csPin, uint8_t reg, uint8_t value);
-    uint8_t readRegister(pin_size_t  csPin, uint8_t reg);
-
-    // Direcciones de registro
+    void initMCP1(bool asInput);
+    void initMCP2(bool asInput);
+    void initMCP3(bool asInput);
+    void initMCP4(bool asInput);
+    void writeRegister1(uint8_t reg, uint8_t value);
+    void writeRegister2(uint8_t reg, uint8_t value);
+    void writeRegister3(uint8_t reg, uint8_t value);
+    void writeRegister4(uint8_t reg, uint8_t value);
+    uint8_t readRegister1(uint8_t reg);
+    uint8_t readRegister2(uint8_t reg);
+    uint8_t readRegister3(uint8_t reg);
+    uint8_t readRegister4(uint8_t reg);
+    
     
 };
 
