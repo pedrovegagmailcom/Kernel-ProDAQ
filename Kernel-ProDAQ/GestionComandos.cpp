@@ -125,6 +125,7 @@ void CommandWF(float param1, float param2) {
         CambiarBit(&estado_maquina, 2, 0);
 
         actualizarSalidaVelocidad();
+        Serial.write(13);
 }
 
 void CommandWR(float param1, float param2) {
@@ -133,6 +134,7 @@ void CommandWR(float param1, float param2) {
         CambiarBit(&estado_maquina, 2, 0);
 
         actualizarSalidaVelocidad();
+        Serial.write(13);
 }
 
 void CommandWS(float param1, float param2) {
@@ -141,6 +143,7 @@ void CommandWS(float param1, float param2) {
         CambiarBit(&estado_maquina, 2, 1);
 
         actualizarSalidaVelocidad();
+        Serial.write(13);
 }
 
 

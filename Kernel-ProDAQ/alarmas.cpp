@@ -54,15 +54,15 @@ void Alarmas::comprobar() {
     //  INPUT_FCS_BIT, INPUT_FCI_BIT, INPUT_SETA_BIT, INPUT_MOTOR_BIT,
     //  INPUT_COMP_BIT, INPUT_TRAC_BIT, INPUT_CERO_BIT, INPUT_CELULA_BIT)
 
-    setAlarmaBit(A_FCS,    (inputs & (1u << INPUT_FCS_BIT))    != 0);
-    setAlarmaBit(A_FCI,    (inputs & (1u << INPUT_FCI_BIT))    != 0);
-    setAlarmaBit(A_SETA,   (inputs & (1u << INPUT_SETA_BIT))   != 0);
-    setAlarmaBit(A_MOTOR,  (inputs & (1u << INPUT_MOTOR_BIT))  != 0);
+    setAlarmaBit(A_FCS,    (inputs & (1u << INPUT_FCS_BIT))    == 0);
+    setAlarmaBit(A_FCI,    (inputs & (1u << INPUT_FCI_BIT))    == 0);
+    setAlarmaBit(A_SETA,   (inputs & (1u << INPUT_SETA_BIT))   == 0);
+    setAlarmaBit(A_MOTOR,  (inputs & (1u << INPUT_MOTOR_BIT))  == 0);
 
-    setAlarmaBit(A_COMP,   (inputs & (1u << INPUT_COMP_BIT))   != 0);
-    setAlarmaBit(A_TRAC,   (inputs & (1u << INPUT_TRAC_BIT))   != 0);
-    setAlarmaBit(A_CERO,   (inputs & (1u << INPUT_CERO_BIT))   != 0);
-    setAlarmaBit(A_CELULA, (inputs & (1u << INPUT_CELULA_BIT)) != 0);
+    setAlarmaBit(A_COMP,   (inputs & (1u << INPUT_COMP_BIT))   == 0);
+    setAlarmaBit(A_TRAC,   (inputs & (1u << INPUT_TRAC_BIT))   == 0);
+    setAlarmaBit(A_CERO,   (inputs & (1u << INPUT_CERO_BIT))   == 0);
+    setAlarmaBit(A_CELULA, (inputs & (1u << INPUT_CELULA_BIT)) == 0);
 }
 
 // ======= Gestión de estado de máquina =======

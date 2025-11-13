@@ -149,19 +149,6 @@ void loop() {
 
 
 
-void loop() {
-
-  uint16_t entradas = 0;//IOsystem.readInputs();   // Lee las 12 entradas
-  IOsystem.writeOutputs(43690);             // Refleja las entradas en las salidas
-
-  Serial.println(entradas, BIN);  // muestra algo como 101101000111
-
-  delay(200);
-
-}
-*/
-
-
 /*
 
 void loop3() {
