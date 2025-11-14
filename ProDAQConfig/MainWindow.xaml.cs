@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
@@ -245,7 +246,8 @@ namespace ProDAQConfig
             {
                 ForceReading = await QueryDeviceAsync("R1");
                 EncoderReading = await QueryDeviceAsync("R2");
-                AlarmStatus = await QueryDeviceAsync("RS");
+                var (alarmByte, statusByte) = await QueryAlarmBytesAsync();
+                AlarmStatus = FormatAlarmStatus(alarmByte, statusByte);
                 StatusMessage = "Lecturas actualizadas";
             }
             catch (Exception ex)
@@ -271,6 +273,89 @@ namespace ProDAQConfig
                     return response?.Trim() ?? string.Empty;
                 }
             });
+        }
+
+        private Task<(byte alarmByte, byte statusByte)> QueryAlarmBytesAsync()
+        {
+            return Task.Run(() =>
+            {
+                lock (_serialLock)
+                {
+                    if (_serialPort == null || !_serialPort.IsOpen)
+                    {
+                        throw new InvalidOperationException("El puerto no está abierto");
+                    }
+
+                    _serialPort.DiscardInBuffer();
+                    _serialPort.WriteLine("RS");
+
+                    var buffer = new byte[3];
+                    var read = 0;
+                    while (read < buffer.Length)
+                    {
+                        var received = _serialPort.Read(buffer, read, buffer.Length - read);
+                        if (received == 0)
+                        {
+                            throw new TimeoutException("Tiempo de espera agotado leyendo RS");
+                        }
+
+                        read += received;
+                    }
+
+                    if (buffer[2] != '\r')
+                    {
+                        throw new InvalidOperationException("Respuesta RS inválida (sin terminador)");
+                    }
+
+                    return (buffer[0], buffer[1]);
+                }
+            });
+        }
+
+        private string FormatAlarmStatus(byte alarmByte, byte statusByte)
+        {
+            var alarmNames = new[]
+            {
+                "Motor",
+                "Compresor",
+                "FCI",
+                "Tracción",
+                "FCS",
+                "Seta",
+                "Cero",
+                "Célula"
+            };
+
+            var activeAlarms = new List<string>();
+            for (var i = 0; i < alarmNames.Length; i++)
+            {
+                if ((alarmByte & (1 << i)) != 0)
+                {
+                    activeAlarms.Add(alarmNames[i]);
+                }
+            }
+
+            var alarmText = activeAlarms.Count > 0
+                ? $"Alarmas: {string.Join(", ", activeAlarms)}"
+                : "Sin alarmas";
+
+            var statusDescriptions = new[]
+            {
+                ($"Up/Down", 0),
+                ($"Stop", 1),
+                ($"Remoto", 2)
+            };
+
+            var statusParts = new List<string>();
+            foreach (var (label, bit) in statusDescriptions)
+            {
+                var isActive = (statusByte & (1 << bit)) != 0;
+                statusParts.Add($"{label}: {(isActive ? "ON" : "OFF")}");
+            }
+
+            var statusText = $"Estado -> {string.Join(", ", statusParts)}";
+
+            return $"{alarmText} | {statusText}";
         }
 
         private async void ApplyOffsetButton_Click(object sender, RoutedEventArgs e)
