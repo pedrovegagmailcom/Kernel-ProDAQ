@@ -186,7 +186,8 @@ namespace ProDAQConfig
                     Encoding = Encoding.ASCII,
                     ReadTimeout = 1000,
                     WriteTimeout = 1000,
-                    NewLine = "\r\n"
+                    NewLine = "\r",
+                    DtrEnable = true
                 };
                 _serialPort.Open();
                 IsConnected = true;
@@ -244,7 +245,7 @@ namespace ProDAQConfig
             {
                 ForceReading = await QueryDeviceAsync("R1");
                 EncoderReading = await QueryDeviceAsync("R2");
-                AlarmStatus = await QueryDeviceAsync("R3");
+                AlarmStatus = await QueryDeviceAsync("RS");
                 StatusMessage = "Lecturas actualizadas";
             }
             catch (Exception ex)
