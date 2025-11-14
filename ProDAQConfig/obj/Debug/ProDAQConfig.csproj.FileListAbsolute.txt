@@ -1,0 +1,15 @@
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\bin\Debug\ProDAQConfig.exe.config
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\bin\Debug\ProDAQConfig.exe
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\bin\Debug\ProDAQConfig.pdb
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\ProDAQConfig.csproj.AssemblyReference.cache
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\MainWindow.g.cs
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\App.g.cs
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\ProDAQConfig_MarkupCompile.cache
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\ProDAQConfig_MarkupCompile.lref
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\MainWindow.baml
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\ProDAQConfig.g.resources
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\ProDAQConfig.Properties.Resources.resources
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\ProDAQConfig.csproj.GenerateResource.cache
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\ProDAQConfig.csproj.CoreCompileInputs.cache
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\ProDAQConfig.exe
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\ProDAQConfig.pdb
