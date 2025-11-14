@@ -13,3 +13,4 @@ Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\ProDAQConfig.csproj.GenerateResou
 Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\ProDAQConfig.csproj.CoreCompileInputs.cache
 Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\ProDAQConfig.exe
 Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\ProDAQConfig.pdb
+Y:\GitHub\Kernel-ProDAQ\ProDAQConfig\obj\Debug\ProDAQConfig.exe.config

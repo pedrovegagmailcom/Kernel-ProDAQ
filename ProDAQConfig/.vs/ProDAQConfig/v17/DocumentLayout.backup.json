@@ -41,7 +41,8 @@
               "ToolTip": "Y:\\GitHub\\Kernel-ProDAQ\\ProDAQConfig\\MainWindow.xaml",
               "RelativeToolTip": "MainWindow.xaml",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003549|",
-              "WhenOpened": "2025-11-14T07:38:36.278Z"
+              "WhenOpened": "2025-11-14T07:38:36.278Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
@@ -51,7 +52,7 @@
               "RelativeDocumentMoniker": "MainWindow.xaml.cs",
               "ToolTip": "Y:\\GitHub\\Kernel-ProDAQ\\ProDAQConfig\\MainWindow.xaml.cs",
               "RelativeToolTip": "MainWindow.xaml.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAPIAAAAAAAAAAAAAAAgBAABZAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2025-11-14T07:38:34.313Z",
               "EditorCaption": ""
