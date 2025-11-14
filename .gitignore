@@ -23,3 +23,14 @@
 # Otros generados
 *.user
 *.suo
+/ProDAQConfig/.vs/ProDAQConfig/v17/.suo
+/ProDAQConfig/.vs/ProDAQConfig/v17/DocumentLayout.backup.json
+/ProDAQConfig/.vs/ProDAQConfig/v17/DocumentLayout.json
+/ProDAQConfig/bin/Debug/ProDAQConfig.exe
+/ProDAQConfig/bin/Debug/ProDAQConfig.pdb
+/ProDAQConfig/MainWindow.xaml.cs
+/ProDAQConfig/obj/Debug/MainWindow.baml
+/ProDAQConfig/obj/Debug/MainWindow.g.cs
+/ProDAQConfig/obj/Debug/MainWindow.g.i.cs
+/ProDAQConfig/obj/Debug/ProDAQConfig.exe
+/ProDAQConfig/obj/Debug/ProDAQConfig.pdb
