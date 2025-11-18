@@ -63,6 +63,8 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="200" />
@@ -75,10 +77,17 @@
                     <TextBlock Grid.Row="1" Text="Lectura del encoder (R2):" FontWeight="SemiBold" />
                     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding EncoderReading}" />
 
-                    <TextBlock Grid.Row="2" Text="Estado alarmas:" FontWeight="SemiBold" />
-                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding AlarmStatus}" TextWrapping="Wrap" />
+                    <TextBlock Grid.Row="2" Text="Encoder en mm:" FontWeight="SemiBold" />
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding EncoderReadingMm}" />
 
-                    <Button Grid.Row="3" Grid.ColumnSpan="2" Content="Actualizar lecturas" Margin="0,12,0,0" Padding="12,4" HorizontalAlignment="Left" Click="ReadTelemetryButton_Click" />
+                    <TextBlock Grid.Row="3" Text="Ganancia encoder (pasos/mm):" FontWeight="SemiBold" />
+                    <TextBox Grid.Row="3" Grid.Column="1" Width="120" HorizontalContentAlignment="Right"
+                             Text="{Binding EncoderGain, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F3}" />
+
+                    <TextBlock Grid.Row="4" Text="Estado alarmas:" FontWeight="SemiBold" />
+                    <TextBlock Grid.Row="4" Grid.Column="1" Text="{Binding AlarmStatus}" TextWrapping="Wrap" />
+
+                    <Button Grid.Row="5" Grid.ColumnSpan="2" Content="Actualizar lecturas" Margin="0,12,0,0" Padding="12,4" HorizontalAlignment="Left" Click="ReadTelemetryButton_Click" />
                 </Grid>
             </GroupBox>
         </Grid>
