@@ -187,10 +187,11 @@ namespace ProDAQConfig
                     Encoding = Encoding.ASCII,
                     ReadTimeout = 1000,
                     WriteTimeout = 1000,
-                    NewLine = "\r\n"
+                    NewLine = "\r"
                 };
                 _serialPort.Open();
                 IsConnected = true;
+                _serialPort.DtrEnable = true;
                 StatusMessage = $"Conectado a {SelectedPort}";
                 _telemetryTimer.Start();
             }
