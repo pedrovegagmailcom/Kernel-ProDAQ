@@ -3,3 +3,23 @@
 .vscode/c_cpp_properties.json
 .vscode/launch.json
 .vscode/ipch
+# Visual Studio / .NET
+.vs/
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Archivos de VS que no interesan
+*.VC.db
+*.VC.opendb
+*.ipch
+
+# Copilot / índices locales de VS
+**/CopilotIndices/
+
+# Otros generados
+*.user
+*.suo

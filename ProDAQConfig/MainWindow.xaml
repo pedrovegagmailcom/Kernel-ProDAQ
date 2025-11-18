@@ -1,12 +1,112 @@
-﻿<Window x:Class="ProDAQConfig.MainWindow"
+<Window x:Class="ProDAQConfig.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ProDAQConfig"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
-        
+        Title="ProDAQ Config" Height="520" Width="900">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Configuración de ProDAQ" FontSize="24" FontWeight="Bold" />
+
+        <!-- Conexión serie -->
+        <GroupBox Grid.Row="1" Header="Conexión" Margin="0,12,0,0">
+            <Grid Margin="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="200" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock Text="Puerto" VerticalAlignment="Center" Margin="0,0,8,0" />
+                <ComboBox x:Name="PortsComboBox"
+                          Grid.Column="1"
+                          ItemsSource="{Binding AvailablePorts}"
+                          SelectedItem="{Binding SelectedPort, Mode=TwoWay}"
+                          MinWidth="160" />
+                <Button Grid.Column="2" Content="Actualizar" Margin="8,0" Padding="12,4" Click="RefreshPortsButton_Click" />
+                <Button Grid.Column="3" Content="Conectar" Margin="8,0" Padding="12,4" Click="ConnectButton_Click" />
+                <Button Grid.Column="4" HorizontalAlignment="Left" Content="Desconectar" Padding="12,4" Click="DisconnectButton_Click" />
+
+                <TextBlock Grid.Row="1" Grid.ColumnSpan="5" Text="{Binding StatusMessage}" Foreground="Gray" Margin="0,12,0,0" />
+            </Grid>
+        </GroupBox>
+
+        <!-- Lecturas -->
+        <Grid Grid.Row="2" Margin="0,12,0,12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <GroupBox Header="Telemetría" Grid.ColumnSpan="2">
+                <Grid Margin="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="200" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Text="Lectura de fuerza (R1):" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="1" Text="{Binding ForceReading}" />
+
+                    <TextBlock Grid.Row="1" Text="Lectura del encoder (R2):" FontWeight="SemiBold" />
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding EncoderReading}" />
+
+                    <TextBlock Grid.Row="2" Text="Estado alarmas:" FontWeight="SemiBold" />
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding AlarmStatus}" TextWrapping="Wrap" />
+
+                    <Button Grid.Row="3" Grid.ColumnSpan="2" Content="Actualizar lecturas" Margin="0,12,0,0" Padding="12,4" HorizontalAlignment="Left" Click="ReadTelemetryButton_Click" />
+                </Grid>
+            </GroupBox>
+        </Grid>
+
+        <!-- Offset -->
+        <GroupBox Grid.Row="3" Header="Ajuste de offset de salida analógica">
+            <Grid Margin="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel>
+                    <TextBlock Text="Offset (V)" FontWeight="SemiBold" />
+                    <Slider Minimum="-5" Maximum="5" TickFrequency="0.1" IsSnapToTickEnabled="True"
+                            Value="{Binding OffsetValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
+                    <TextBlock Text="Valor" FontWeight="SemiBold" />
+                    <TextBox Width="100" HorizontalContentAlignment="Right"
+                             Text="{Binding OffsetValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F3}" />
+                </StackPanel>
+
+                <Button Grid.Column="2" Content="Aplicar" Padding="16,8" VerticalAlignment="Center"
+                        Click="ApplyOffsetButton_Click" />
+            </Grid>
+        </GroupBox>
     </Grid>
 </Window>
