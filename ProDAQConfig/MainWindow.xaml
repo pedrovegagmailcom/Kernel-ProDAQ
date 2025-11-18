@@ -81,6 +81,19 @@
                     <Button Grid.Row="3" Grid.ColumnSpan="2" Content="Actualizar lecturas" Margin="0,12,0,0" Padding="12,4" HorizontalAlignment="Left" Click="ReadTelemetryButton_Click" />
                 </Grid>
             </GroupBox>
+
+            <GroupBox Grid.Row="1" Grid.ColumnSpan="2" Header="Ganancia del encoder" Margin="0,12,0,0">
+                <StackPanel Margin="12">
+                    <TextBlock Text="Pasos por milímetro" FontWeight="SemiBold" />
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <TextBox Width="140"
+                                 HorizontalContentAlignment="Right"
+                                 Text="{Binding EncoderGain, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F3}" />
+                        <TextBlock Text="pasos/mm" Margin="8,0,0,0" VerticalAlignment="Center" />
+                    </StackPanel>
+                    <Button Content="Aplicar ganancia" Margin="0,8,0,0" Padding="12,4" HorizontalAlignment="Left" Click="ApplyEncoderGainButton_Click" />
+                </StackPanel>
+            </GroupBox>
         </Grid>
 
         <!-- Offset -->
