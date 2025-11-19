@@ -90,13 +90,16 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
                 <TextBlock Text="pasos por mm" VerticalAlignment="Center" />
                 <TextBox Grid.Column="1" Width="120" HorizontalContentAlignment="Right"
                          Text="{Binding EncoderGain, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F4}" />
-                <TextBlock Grid.Column="2" Text="Introduce cuántos pasos equivalen a un milímetro para mostrar la lectura del encoder en milímetros." TextWrapping="Wrap" Margin="12,0,0,0" />
+                <Button Grid.Column="2" Content="Aplicar" Margin="12,0" Padding="16,8" VerticalAlignment="Center"
+                        Click="ApplyEncoderGainButton_Click" />
+                <TextBlock Grid.Column="3" Text="El valor se envía al kernel; la telemetría del encoder ya llegará en milímetros." TextWrapping="Wrap" Margin="12,0,0,0" />
             </Grid>
         </GroupBox>
 

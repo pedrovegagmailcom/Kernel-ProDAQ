@@ -29,7 +29,6 @@ namespace ProDAQConfig
         private string _alarmStatus = "--";
         private double _offsetValue;
         private double _encoderGain = 1.0;
-        private double? _lastEncoderSteps;
         private bool _isConnected;
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -151,7 +150,6 @@ namespace ProDAQConfig
                 {
                     _encoderGain = rounded;
                     OnPropertyChanged(nameof(EncoderGain));
-                    UpdateEncoderReadingDisplay();
                 }
             }
         }
@@ -431,30 +429,53 @@ namespace ProDAQConfig
 
         private void ParseEncoderReading(string encoderResponse)
         {
-            if (double.TryParse(encoderResponse, NumberStyles.Float, CultureInfo.InvariantCulture, out var steps))
+            if (double.TryParse(encoderResponse, NumberStyles.Float, CultureInfo.InvariantCulture, out var millimeters))
             {
-                _lastEncoderSteps = steps;
-                UpdateEncoderReadingDisplay();
+                EncoderReading = $"{millimeters:F3} mm";
             }
             else
             {
-                _lastEncoderSteps = null;
                 EncoderReading = encoderResponse;
             }
         }
 
-        private void UpdateEncoderReadingDisplay()
+        private async void ApplyEncoderGainButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_lastEncoderSteps.HasValue)
-            {
-                if (Math.Abs(EncoderGain) < double.Epsilon)
-                {
-                    EncoderReading = $"{_lastEncoderSteps.Value:F0} pasos (ganancia inválida)";
-                    return;
-                }
+            await ApplyEncoderGainAsync();
+        }
 
-                var millimeters = _lastEncoderSteps.Value / EncoderGain;
-                EncoderReading = $"{_lastEncoderSteps.Value:F0} pasos ({millimeters:F3} mm)";
+        private async Task ApplyEncoderGainAsync()
+        {
+            if (_serialPort == null || !IsConnected)
+            {
+                StatusMessage = "Debe conectarse a un puerto antes de aplicar la ganancia";
+                return;
+            }
+
+            if (EncoderGain <= 0)
+            {
+                StatusMessage = "La ganancia debe ser mayor a cero";
+                return;
+            }
+
+            try
+            {
+                var formattedValue = EncoderGain.ToString("F4", CultureInfo.InvariantCulture);
+                var command = $"WE {formattedValue}";
+                await Task.Run(() =>
+                {
+                    lock (_serialLock)
+                    {
+                        _serialPort.WriteLine(command);
+                        _serialPort.ReadLine();
+                    }
+                });
+
+                StatusMessage = $"Ganancia aplicada: {EncoderGain:F4} pasos/mm";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error aplicando ganancia: {ex.Message}";
             }
         }
     }
