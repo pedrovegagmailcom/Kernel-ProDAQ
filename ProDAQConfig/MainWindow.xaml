@@ -70,14 +70,14 @@
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
-                    <TextBlock Text="Lectura de fuerza (R1):" FontWeight="SemiBold" />
+                    <TextBlock Text="Lectura de fuerza (R1):" FontWeight="Bold"  FontSize="14"/>
                     <TextBlock Grid.Column="1" Text="{Binding ForceReading}" />
 
-                    <TextBlock Grid.Row="1" Text="Lectura del encoder (R2):" FontWeight="SemiBold" />
+                    <TextBlock Grid.Row="1" Text="Lectura del encoder (R2):" FontWeight="Bold" FontSize="14" />
                     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding EncoderReading}" />
 
-                    <TextBlock Grid.Row="2" Text="Estado alarmas:" FontWeight="SemiBold" />
-                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding AlarmStatus}" TextWrapping="Wrap" />
+                    <TextBlock Grid.Row="2" Text="Estado alarmas:" FontWeight="Bold" />
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding AlarmStatus}" TextWrapping="Wrap" FontSize="14"/>
 
                     <Button Grid.Row="3" Grid.ColumnSpan="2" Content="Actualizar lecturas" Margin="0,12,0,0" Padding="12,4" HorizontalAlignment="Left" Click="ReadTelemetryButton_Click" />
                 </Grid>
