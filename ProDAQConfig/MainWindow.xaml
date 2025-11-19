@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ProDAQConfig"
         mc:Ignorable="d"
-        Title="ProDAQ Config" Height="520" Width="900">
+        Title="ProDAQ Config" Height="800" Width="900">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -85,25 +85,25 @@
 
             <GroupBox Header="Control manual" Grid.Column="1">
                 <StackPanel Margin="12" VerticalAlignment="Center">
-                    <TextBlock Text="Movimiento" FontWeight="SemiBold" Margin="0,0,0,12" />
-                    <Button Padding="16,8" Margin="0,0,0,8"
+                    <Button Padding="16,8" Margin="0,0,0,8" Width="100" Height="30"
                             ToolTip="Subir"
                             Click="MoveUpButton_Click"
                             IsEnabled="{Binding IsConnected}">
-                        <TextBlock Text="▲" FontSize="24" HorizontalAlignment="Center" />
+                        <TextBlock Text="▲" FontSize="10" HorizontalAlignment="Center" />
                     </Button>
-                    <Button Padding="16,8" Margin="0,0,0,8"
+                    <Button Padding="16,8" Margin="0,0,0,8" Width="100" Height="30"
+                        ToolTip="Parar"
+                        Click="StopButton_Click"
+                        IsEnabled="{Binding IsConnected}">
+                        <TextBlock Text="■" FontSize="10" HorizontalAlignment="Center" />
+                    </Button>
+                    <Button Padding="16,8"  Width="100" Height="30"
                             ToolTip="Bajar"
                             Click="MoveDownButton_Click"
                             IsEnabled="{Binding IsConnected}">
-                        <TextBlock Text="▼" FontSize="24" HorizontalAlignment="Center" />
+                        <TextBlock Text="▼" FontSize="10" HorizontalAlignment="Center" />
                     </Button>
-                    <Button Padding="16,8"
-                            ToolTip="Parar"
-                            Click="StopButton_Click"
-                            IsEnabled="{Binding IsConnected}">
-                        <TextBlock Text="■" FontSize="20" HorizontalAlignment="Center" />
-                    </Button>
+                    
                 </StackPanel>
             </GroupBox>
         </Grid>
