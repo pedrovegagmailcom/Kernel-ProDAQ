@@ -13,6 +13,7 @@
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <TextBlock Text="Configuración de ProDAQ" FontSize="24" FontWeight="Bold" />
@@ -127,7 +128,35 @@
             </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="4" Header="Ajuste de offset de salida analógica">
+        <GroupBox Grid.Row="4" Header="Consigna de velocidad">
+            <Grid Margin="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="Velocidad (mm/min)" VerticalAlignment="Center" />
+                <TextBox Grid.Column="1"
+                         Width="120"
+                         HorizontalContentAlignment="Right"
+                         Text="{Binding SpeedSetpoint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
+                <Button Grid.Column="2"
+                        Content="Aplicar"
+                        Margin="12,0"
+                        Padding="16,8"
+                        VerticalAlignment="Center"
+                        IsEnabled="{Binding IsConnected}"
+                        Click="ApplySpeedSetpointButton_Click" />
+                <TextBlock Grid.Column="3"
+                           Text="Se envía el comando WV al kernel (máx. 500 mm/min)."
+                           TextWrapping="Wrap"
+                           Margin="12,0,0,0" />
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Grid.Row="5" Header="Ajuste de offset de salida analógica">
             <Grid Margin="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
