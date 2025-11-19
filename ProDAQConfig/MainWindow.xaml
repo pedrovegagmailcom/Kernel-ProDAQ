@@ -86,15 +86,24 @@
             <GroupBox Header="Control manual" Grid.Column="1">
                 <StackPanel Margin="12" VerticalAlignment="Center">
                     <TextBlock Text="Movimiento" FontWeight="SemiBold" Margin="0,0,0,12" />
-                    <Button Content="Subir" Padding="16,8" Margin="0,0,0,8"
+                    <Button Padding="16,8" Margin="0,0,0,8"
+                            ToolTip="Subir"
                             Click="MoveUpButton_Click"
-                            IsEnabled="{Binding IsConnected}" />
-                    <Button Content="Bajar" Padding="16,8" Margin="0,0,0,8"
+                            IsEnabled="{Binding IsConnected}">
+                        <TextBlock Text="▲" FontSize="24" HorizontalAlignment="Center" />
+                    </Button>
+                    <Button Padding="16,8" Margin="0,0,0,8"
+                            ToolTip="Bajar"
                             Click="MoveDownButton_Click"
-                            IsEnabled="{Binding IsConnected}" />
-                    <Button Content="Parar" Padding="16,8"
+                            IsEnabled="{Binding IsConnected}">
+                        <TextBlock Text="▼" FontSize="24" HorizontalAlignment="Center" />
+                    </Button>
+                    <Button Padding="16,8"
+                            ToolTip="Parar"
                             Click="StopButton_Click"
-                            IsEnabled="{Binding IsConnected}" />
+                            IsEnabled="{Binding IsConnected}">
+                        <TextBlock Text="■" FontSize="20" HorizontalAlignment="Center" />
+                    </Button>
                 </StackPanel>
             </GroupBox>
         </Grid>
