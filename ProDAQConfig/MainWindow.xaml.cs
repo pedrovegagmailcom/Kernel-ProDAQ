@@ -17,6 +17,8 @@ namespace ProDAQConfig
     /// </summary>
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
+        private const double MaxSpeedSetpoint = 500.0;
+
         private readonly ObservableCollection<string> _availablePorts = new ObservableCollection<string>();
         private readonly DispatcherTimer _telemetryTimer;
         private readonly object _serialLock = new object();
@@ -29,6 +31,7 @@ namespace ProDAQConfig
         private string _alarmStatus = "--";
         private double _offsetValue;
         private double _encoderGain = 1.0;
+        private double _speedSetpoint = 100.0;
         private bool _isConnected;
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -150,6 +153,21 @@ namespace ProDAQConfig
                 {
                     _encoderGain = rounded;
                     OnPropertyChanged(nameof(EncoderGain));
+                }
+            }
+        }
+
+        public double SpeedSetpoint
+        {
+            get => _speedSetpoint;
+            set
+            {
+                var clamped = Math.Max(0.0, Math.Min(value, MaxSpeedSetpoint));
+                var rounded = Math.Round(clamped, 1);
+                if (Math.Abs(_speedSetpoint - rounded) > double.Epsilon)
+                {
+                    _speedSetpoint = rounded;
+                    OnPropertyChanged(nameof(SpeedSetpoint));
                 }
             }
         }
@@ -476,6 +494,48 @@ namespace ProDAQConfig
             catch (Exception ex)
             {
                 StatusMessage = $"Error aplicando ganancia: {ex.Message}";
+            }
+        }
+
+        private async void ApplySpeedSetpointButton_Click(object sender, RoutedEventArgs e)
+        {
+            await ApplySpeedSetpointAsync();
+        }
+
+        private async Task ApplySpeedSetpointAsync()
+        {
+            if (_serialPort == null || !IsConnected)
+            {
+                StatusMessage = "Debe conectarse a un puerto antes de enviar la consigna de velocidad";
+                return;
+            }
+
+            var targetSpeed = SpeedSetpoint;
+
+            if (targetSpeed < 0)
+            {
+                StatusMessage = "La velocidad no puede ser negativa";
+                return;
+            }
+
+            try
+            {
+                var formattedValue = targetSpeed.ToString("F1", CultureInfo.InvariantCulture);
+                var command = $"WV{formattedValue}";
+                await Task.Run(() =>
+                {
+                    lock (_serialLock)
+                    {
+                        _serialPort.WriteLine(command);
+                        _serialPort.ReadLine();
+                    }
+                });
+
+                StatusMessage = $"Consigna de velocidad enviada: {targetSpeed:F1} mm/min";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error al enviar la consigna: {ex.Message}";
             }
         }
 
