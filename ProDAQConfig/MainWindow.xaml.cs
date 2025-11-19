@@ -447,7 +447,13 @@ namespace ProDAQConfig
         {
             if (_lastEncoderSteps.HasValue)
             {
-                var millimeters = _lastEncoderSteps.Value * EncoderGain;
+                if (Math.Abs(EncoderGain) < double.Epsilon)
+                {
+                    EncoderReading = $"{_lastEncoderSteps.Value:F0} pasos (ganancia inválida)";
+                    return;
+                }
+
+                var millimeters = _lastEncoderSteps.Value / EncoderGain;
                 EncoderReading = $"{_lastEncoderSteps.Value:F0} pasos ({millimeters:F3} mm)";
             }
         }

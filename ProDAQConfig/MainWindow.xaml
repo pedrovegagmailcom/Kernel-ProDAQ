@@ -93,10 +93,10 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <TextBlock Text="mm por paso" VerticalAlignment="Center" />
+                <TextBlock Text="pasos por mm" VerticalAlignment="Center" />
                 <TextBox Grid.Column="1" Width="120" HorizontalContentAlignment="Right"
                          Text="{Binding EncoderGain, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F4}" />
-                <TextBlock Grid.Column="2" Text="Introduce el factor de conversión para mostrar la lectura del encoder en milímetros." TextWrapping="Wrap" Margin="12,0,0,0" />
+                <TextBlock Grid.Column="2" Text="Introduce cuántos pasos equivalen a un milímetro para mostrar la lectura del encoder en milímetros." TextWrapping="Wrap" Margin="12,0,0,0" />
             </Grid>
         </GroupBox>
 
