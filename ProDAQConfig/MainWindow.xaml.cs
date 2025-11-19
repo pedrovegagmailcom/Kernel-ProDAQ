@@ -209,7 +209,9 @@ namespace ProDAQConfig
                 _serialPort.Open();
                 IsConnected = true;
                 _serialPort.DtrEnable = true;
-                StatusMessage = $"Conectado a {SelectedPort}";
+                _serialPort.WriteLine("RI");
+                var response = _serialPort.ReadLine();
+                StatusMessage = $"Conectado a {SelectedPort} [{response}]";
                 _telemetryTimer.Start();
             }
             catch (Exception ex)
