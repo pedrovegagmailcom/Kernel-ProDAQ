@@ -12,6 +12,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <TextBlock Text="Configuración de ProDAQ" FontSize="24" FontWeight="Bold" />
@@ -84,7 +85,22 @@
         </Grid>
 
         <!-- Offset -->
-        <GroupBox Grid.Row="3" Header="Ajuste de offset de salida analógica">
+        <GroupBox Grid.Row="3" Header="Ganancia del encoder">
+            <Grid Margin="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="150" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock Text="mm por paso" VerticalAlignment="Center" />
+                <TextBox Grid.Column="1" Width="120" HorizontalContentAlignment="Right"
+                         Text="{Binding EncoderGain, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F4}" />
+                <TextBlock Grid.Column="2" Text="Introduce el factor de conversión para mostrar la lectura del encoder en milímetros." TextWrapping="Wrap" Margin="12,0,0,0" />
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Grid.Row="4" Header="Ajuste de offset de salida analógica">
             <Grid Margin="12">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />

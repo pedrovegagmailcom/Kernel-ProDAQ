@@ -13,7 +13,7 @@ using System.Windows.Threading;
 namespace ProDAQConfig
 {
     /// <summary>
-    /// LÛgica de interacciÛn para MainWindow.xaml
+    /// L√≥gica de interacci√≥n para MainWindow.xaml
     /// </summary>
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
@@ -28,6 +28,8 @@ namespace ProDAQConfig
         private string _encoderReading = "--";
         private string _alarmStatus = "--";
         private double _offsetValue;
+        private double _encoderGain = 1.0;
+        private double? _lastEncoderSteps;
         private bool _isConnected;
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -139,6 +141,21 @@ namespace ProDAQConfig
             }
         }
 
+        public double EncoderGain
+        {
+            get => _encoderGain;
+            set
+            {
+                var rounded = Math.Round(value, 4);
+                if (Math.Abs(_encoderGain - rounded) > double.Epsilon)
+                {
+                    _encoderGain = rounded;
+                    OnPropertyChanged(nameof(EncoderGain));
+                    UpdateEncoderReadingDisplay();
+                }
+            }
+        }
+
         private async void TelemetryTimerOnTick(object sender, EventArgs e)
         {
             await RequestTelemetryAsync();
@@ -170,7 +187,7 @@ namespace ProDAQConfig
         {
             if (IsConnected)
             {
-                StatusMessage = "Ya existe una conexiÛn activa";
+                StatusMessage = "Ya existe una conexi√≥n activa";
                 return;
             }
 
@@ -245,7 +262,8 @@ namespace ProDAQConfig
             try
             {
                 ForceReading = await QueryDeviceAsync("R1");
-                EncoderReading = await QueryDeviceAsync("R2");
+                var encoderResponse = await QueryDeviceAsync("R2");
+                ParseEncoderReading(encoderResponse);
                 var (alarmByte, statusByte) = await QueryAlarmBytesAsync();
                 AlarmStatus = FormatAlarmStatus(alarmByte, statusByte);
                 StatusMessage = "Lecturas actualizadas";
@@ -264,7 +282,7 @@ namespace ProDAQConfig
                 {
                     if (_serialPort == null || !_serialPort.IsOpen)
                     {
-                        throw new InvalidOperationException("El puerto no est· abierto");
+                        throw new InvalidOperationException("El puerto no est√° abierto");
                     }
 
                     _serialPort.DiscardInBuffer();
@@ -283,7 +301,7 @@ namespace ProDAQConfig
                 {
                     if (_serialPort == null || !_serialPort.IsOpen)
                     {
-                        throw new InvalidOperationException("El puerto no est· abierto");
+                        throw new InvalidOperationException("El puerto no est√° abierto");
                     }
 
                     _serialPort.DiscardInBuffer();
@@ -304,7 +322,7 @@ namespace ProDAQConfig
 
                     if (buffer[2] != '\r')
                     {
-                        throw new InvalidOperationException("Respuesta RS inv·lida (sin terminador)");
+                        throw new InvalidOperationException("Respuesta RS inv√°lida (sin terminador)");
                     }
 
                     return (buffer[0], buffer[1]);
@@ -319,11 +337,11 @@ namespace ProDAQConfig
                 "Motor",
                 "Compresor",
                 "FCI",
-                "TracciÛn",
+                "Tracci√≥n",
                 "FCS",
                 "Seta",
                 "Cero",
-                "CÈlula"
+                "C√©lula"
             };
 
             var activeAlarms = new List<string>();
@@ -381,7 +399,7 @@ namespace ProDAQConfig
                     lock (_serialLock)
                     {
                         _serialPort.WriteLine(command);
-                        _serialPort.ReadLine(); // se asume eco o confirmaciÛn
+                        _serialPort.ReadLine(); // se asume eco o confirmaci√≥n
                     }
                 });
 
@@ -407,6 +425,29 @@ namespace ProDAQConfig
         private void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private void ParseEncoderReading(string encoderResponse)
+        {
+            if (double.TryParse(encoderResponse, NumberStyles.Float, CultureInfo.InvariantCulture, out var steps))
+            {
+                _lastEncoderSteps = steps;
+                UpdateEncoderReadingDisplay();
+            }
+            else
+            {
+                _lastEncoderSteps = null;
+                EncoderReading = encoderResponse;
+            }
+        }
+
+        private void UpdateEncoderReadingDisplay()
+        {
+            if (_lastEncoderSteps.HasValue)
+            {
+                var millimeters = _lastEncoderSteps.Value * EncoderGain;
+                EncoderReading = $"{_lastEncoderSteps.Value:F0} pasos ({millimeters:F3} mm)";
+            }
         }
     }
 }
