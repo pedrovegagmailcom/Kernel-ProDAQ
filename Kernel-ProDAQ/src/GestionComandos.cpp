@@ -50,6 +50,7 @@ constexpr float DAC_COUNTS_PER_VOLT = 65535.0f / (DAC_MAX_VOLTAGE * 2.0f);
 float velocidadConsigna = 0.0f;
 float dacZeroOffsetVolts = 0.0f;
 int32_t dacZeroOffsetCounts = 0;
+float encoderStepsPerMillimeter = 1.0f;
 
 float normalizarVelocidad(float valor) {
     if (!isfinite(valor)) {
@@ -111,6 +112,14 @@ void actualizarOffsetDAC(float offsetVolts) {
 
     dacZeroOffsetVolts = offsetVolts;
     dacZeroOffsetCounts = static_cast<int32_t>(lrintf(offsetVolts * DAC_COUNTS_PER_VOLT));
+}
+
+void actualizarGananciaEncoder(float pasosPorMilimetro) {
+    if (!isfinite(pasosPorMilimetro) || pasosPorMilimetro <= 0.0f) {
+        return;
+    }
+
+    encoderStepsPerMillimeter = pasosPorMilimetro;
 }
 
 float convertirParametroVelocidad(float parametro) {
@@ -257,7 +266,13 @@ void CommandROffset(float param1, float param2) {
 }
 
 void CommandWE(float param1, float param2) {
-	Serial.println("");
+        if (!isfinite(param1) || param1 <= 0.0f) {
+                Serial.println("ERR");
+                return;
+        }
+
+        actualizarGananciaEncoder(param1);
+        Serial.println(encoderStepsPerMillimeter, 4);
 }
 
 void CommandWI(float param1, float param2) {
@@ -269,8 +284,16 @@ void CommandR1(float param1, float param2) {
 }
 
 void CommandR2(float param1, float param2) {
-    unsigned long  valor = Encoder.read_counter();
-	Serial.println(valor, 4);
+    unsigned long valor = Encoder.read_counter();
+
+    if (encoderStepsPerMillimeter <= 0.0f) {
+        Serial.println("ERR");
+        return;
+    }
+
+    double pasos = static_cast<double>(valor);
+    double milimetros = pasos / static_cast<double>(encoderStepsPerMillimeter);
+    Serial.println(milimetros, 4);
 }
 
 void CommandRS(float param1, float param2) {
