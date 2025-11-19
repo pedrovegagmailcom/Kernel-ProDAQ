@@ -49,7 +49,7 @@
         <!-- Lecturas -->
         <Grid Grid.Row="2" Margin="0,12,0,12">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="2*" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
@@ -57,7 +57,7 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <GroupBox Header="Telemetría" Grid.ColumnSpan="2">
+            <GroupBox Header="Telemetría" Grid.Column="0" Margin="0,0,12,0">
                 <Grid Margin="12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -81,6 +81,21 @@
 
                     <Button Grid.Row="3" Grid.ColumnSpan="2" Content="Actualizar lecturas" Margin="0,12,0,0" Padding="12,4" HorizontalAlignment="Left" Click="ReadTelemetryButton_Click" />
                 </Grid>
+            </GroupBox>
+
+            <GroupBox Header="Control manual" Grid.Column="1">
+                <StackPanel Margin="12" VerticalAlignment="Center">
+                    <TextBlock Text="Movimiento" FontWeight="SemiBold" Margin="0,0,0,12" />
+                    <Button Content="Subir" Padding="16,8" Margin="0,0,0,8"
+                            Click="MoveUpButton_Click"
+                            IsEnabled="{Binding IsConnected}" />
+                    <Button Content="Bajar" Padding="16,8" Margin="0,0,0,8"
+                            Click="MoveDownButton_Click"
+                            IsEnabled="{Binding IsConnected}" />
+                    <Button Content="Parar" Padding="16,8"
+                            Click="StopButton_Click"
+                            IsEnabled="{Binding IsConnected}" />
+                </StackPanel>
             </GroupBox>
         </Grid>
 

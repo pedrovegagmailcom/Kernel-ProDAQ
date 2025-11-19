@@ -478,5 +478,47 @@ namespace ProDAQConfig
                 StatusMessage = $"Error aplicando ganancia: {ex.Message}";
             }
         }
+
+        private async void MoveUpButton_Click(object sender, RoutedEventArgs e)
+        {
+            await SendMachineCommandAsync("WF", "Comando SUBIR enviado", "enviar comando SUBIR");
+        }
+
+        private async void MoveDownButton_Click(object sender, RoutedEventArgs e)
+        {
+            await SendMachineCommandAsync("WR", "Comando BAJAR enviado", "enviar comando BAJAR");
+        }
+
+        private async void StopButton_Click(object sender, RoutedEventArgs e)
+        {
+            await SendMachineCommandAsync("WS", "Comando PARAR enviado", "enviar comando PARAR");
+        }
+
+        private async Task SendMachineCommandAsync(string command, string successMessage, string errorAction)
+        {
+            if (_serialPort == null || !IsConnected)
+            {
+                StatusMessage = "Debe conectarse a un puerto antes de enviar comandos de movimiento";
+                return;
+            }
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    lock (_serialLock)
+                    {
+                        _serialPort.WriteLine(command);
+                        _serialPort.ReadLine();
+                    }
+                });
+
+                StatusMessage = successMessage;
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error al {errorAction}: {ex.Message}";
+            }
+        }
     }
 }
