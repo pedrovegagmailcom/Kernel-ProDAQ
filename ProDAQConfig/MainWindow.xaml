@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:ProDAQConfig"
         mc:Ignorable="d"
-        Title="ProDAQ Config" Height="520" Width="900">
+        Title="ProDAQ Config" Height="800" Width="900">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -49,7 +49,7 @@
         <!-- Lecturas -->
         <Grid Grid.Row="2" Margin="0,12,0,12">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="2*" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
@@ -57,7 +57,7 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <GroupBox Header="Telemetría" Grid.ColumnSpan="2">
+            <GroupBox Header="Telemetría" Grid.Column="0" Margin="0,0,12,0">
                 <Grid Margin="12">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -81,6 +81,30 @@
 
                     <Button Grid.Row="3" Grid.ColumnSpan="2" Content="Actualizar lecturas" Margin="0,12,0,0" Padding="12,4" HorizontalAlignment="Left" Click="ReadTelemetryButton_Click" />
                 </Grid>
+            </GroupBox>
+
+            <GroupBox Header="Control manual" Grid.Column="1">
+                <StackPanel Margin="12" VerticalAlignment="Center">
+                    <Button Padding="16,8" Margin="0,0,0,8" Width="100" Height="30"
+                            ToolTip="Subir"
+                            Click="MoveUpButton_Click"
+                            IsEnabled="{Binding IsConnected}">
+                        <TextBlock Text="▲" FontSize="10" HorizontalAlignment="Center" />
+                    </Button>
+                    <Button Padding="16,8" Margin="0,0,0,8" Width="100" Height="30"
+                        ToolTip="Parar"
+                        Click="StopButton_Click"
+                        IsEnabled="{Binding IsConnected}">
+                        <TextBlock Text="■" FontSize="10" HorizontalAlignment="Center" />
+                    </Button>
+                    <Button Padding="16,8"  Width="100" Height="30"
+                            ToolTip="Bajar"
+                            Click="MoveDownButton_Click"
+                            IsEnabled="{Binding IsConnected}">
+                        <TextBlock Text="▼" FontSize="10" HorizontalAlignment="Center" />
+                    </Button>
+                    
+                </StackPanel>
             </GroupBox>
         </Grid>
 
