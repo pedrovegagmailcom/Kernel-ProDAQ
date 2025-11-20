@@ -2,7 +2,7 @@
    LS7366.h - Library for using the LSI/CSI LS7366 quadrature encoder counter with serial interface
    Created by David Jabon
    License: GPL 3.0
-  The count values that are returned are always unsigned longs (32 bit integers) .
+  The count values that are returned are now longs (32 bit signed integers).
 */
 
 #ifndef LS7366_h
@@ -18,7 +18,7 @@
 //Count modes 
 #define NQUAD 0x00                //non-quadrature mode 
 #define QUADRX1 0x01              //X1 quadrature mode 
-#define QUADRX2 0x02             //X2 quadrature mode 
+#define QUADRX2 0x02              //X2 quadrature mode 
 #define QUADRX4 0x03              //X4 quadrature mode 
 
 //Running modes
@@ -63,7 +63,6 @@
 #define BYTE_1 0x03         //one byte mode
   
 
-
 /* LS7366R op-code list */ 
 #define CLR_MDR0 0x08    
 #define CLR_MDR1 0x10 
@@ -92,8 +91,8 @@ class LS7366
 	void clear_status_register();
 	byte read_mode_register_0();
 	byte read_mode_register_1();
-	unsigned long read_counter();
-	unsigned long read_OTR();
+	long read_counter();      // <-- ahora long (con signo)
+	long read_OTR();          // <-- ahora long (con signo)
 	byte read_status_register();
 	void write_mode_register_0(byte val);
 	void write_mode_register_1(byte val);
@@ -102,7 +101,7 @@ class LS7366
 	void load_OTR();
   private:
 	
-	byte datawidth;
+	byte datawidth;           // número de bytes activos (1..4)
 	long left_extend_MSB(long val);
 };
 
