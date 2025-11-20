@@ -21,6 +21,7 @@
 #include "GestionComandos.h"
 #include "utilidades.h"
 #include "tramos.h"
+#include "almacenamiento.h"
 
 typedef enum {
     PROTOCOLO_NUEVO,
@@ -51,6 +52,17 @@ float velocidadConsigna = 0.0f;
 float dacZeroOffsetVolts = 0.0f;
 int32_t dacZeroOffsetCounts = 0;
 float encoderStepsPerMillimeter = 1.0f;
+
+struct ConfigStruct {
+    float encoderGainStepsPerMillimeter;
+    float dacOffsetVolts;
+};
+
+constexpr uint32_t CONFIG_MAGIC = 0x43464731; // "CFG1"
+constexpr uint32_t CONFIG_BASE_ADDR = 0;
+
+ConfigStruct configData{1.0f, 0.0f};
+ConfigStorage configStorage(sizeof(ConfigStruct), CONFIG_MAGIC, CONFIG_BASE_ADDR);
 
 float normalizarVelocidad(float valor) {
     if (!isfinite(valor)) {
@@ -122,6 +134,36 @@ void actualizarGananciaEncoder(float pasosPorMilimetro) {
     encoderStepsPerMillimeter = pasosPorMilimetro;
 }
 
+void guardarConfiguracionFlash() {
+    configData.dacOffsetVolts              = dacZeroOffsetVolts;
+    configData.encoderGainStepsPerMillimeter = encoderStepsPerMillimeter;
+
+    if (!configStorage.save(&configData)) {
+        Serial.println("No se pudo guardar la configuración en flash");
+    }
+}
+
+void aplicarConfiguracion(const ConfigStruct& cfg) {
+    actualizarGananciaEncoder(cfg.encoderGainStepsPerMillimeter);
+    actualizarOffsetDAC(cfg.dacOffsetVolts);
+}
+
+void cargarConfiguracionFlash() {
+    if (!configStorage.begin()) {
+        Serial.println("No se pudo inicializar el almacenamiento de configuración");
+        return;
+    }
+
+    if (configStorage.load(&configData)) {
+        aplicarConfiguracion(configData);
+        Serial.println("Configuración cargada desde flash");
+    } else {
+        // Guardar valores por defecto para disponer de un bloque válido
+        guardarConfiguracionFlash();
+        Serial.println("Configuración por defecto guardada en flash");
+    }
+}
+
 float convertirParametroVelocidad(float parametro) {
     if (!isfinite(parametro)) {
         return 0.0f;
@@ -148,6 +190,10 @@ float convertirParametroVelocidad(float parametro) {
 }
 
 } // namespace
+
+void InicializarConfiguracion() {
+    cargarConfiguracionFlash();
+}
 
 void CommandWF(float param1, float param2) {
 
@@ -258,6 +304,7 @@ void CommandWV(float param1, float param2) {
 void CommandWO(float param1, float param2) {
         actualizarOffsetDAC(param1);
         actualizarSalidaVelocidad();
+        guardarConfiguracionFlash();
         Serial.println(dacZeroOffsetVolts, 3);
 }
 
@@ -272,6 +319,11 @@ void CommandWE(float param1, float param2) {
         }
 
         actualizarGananciaEncoder(param1);
+        guardarConfiguracionFlash();
+        Serial.println(encoderStepsPerMillimeter, 4);
+}
+
+void CommandRE(float param1, float param2) {
         Serial.println(encoderStepsPerMillimeter, 4);
 }
 
@@ -341,13 +393,14 @@ ComandoMap comandoMaps[] = {
         {"WI", CommandWV, 16},
         {"WO", CommandWO, 17}, // Ajuste offset analógico en volts
         {"RO", CommandROffset, 18},
-        {"R1", CommandR1, 19},
-        {"R2", CommandR2, 20},
-        {"RS", CommandRS, 21},
-        {"RH", CommandRH, 22}, // Ensayo en curso ?
-        {"WB", CommandRS, 23}, // Alarma baja velo
-        {"WT", CommandWT, 24},
-        {"WE", CommandWE, 25},
+        {"RE", CommandRE, 19},
+        {"R1", CommandR1, 20},
+        {"R2", CommandR2, 21},
+        {"RS", CommandRS, 22},
+        {"RH", CommandRH, 23}, // Ensayo en curso ?
+        {"WB", CommandRS, 24}, // Alarma baja velo
+        {"WT", CommandWT, 25},
+        {"WE", CommandWE, 26},
     {NULL, NULL, -1} // Marca el fin de la lista
 };
 
@@ -455,16 +508,22 @@ bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len) {
 
 // Función unificada para procesar el mensaje recibido según el protocolo activo
 bool ProcesarMensaje(uint8_t* Buf, uint32_t Len) {
-	
+
     if (protocoloActual == PROTOCOLO_NUEVO) {
-        
+
         // Si se recibe el comando "RI\r", cambiar a modo antiguo.
         if (Len == 2 && strncmp((char*)Buf, "RI", 2) == 0) {
-            
+
             protocoloActual = PROTOCOLO_VIEJO;
             return ProcesarComandoViejo(Buf, Len);
         }
-        return ProcesarComandoNuevo(Buf, Len);
+        if (ProcesarComandoNuevo(Buf, Len)) {
+            return true;
+        }
+
+        // Compatibilidad: si el formato con tuberías falla, intentar el protocolo viejo
+        protocoloActual = PROTOCOLO_VIEJO;
+        return ProcesarComandoViejo(Buf, Len);
     } else {
         return ProcesarComandoViejo(Buf, Len);
     }

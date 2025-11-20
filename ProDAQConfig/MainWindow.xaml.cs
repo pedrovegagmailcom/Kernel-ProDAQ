@@ -199,7 +199,7 @@ namespace ProDAQConfig
                 : "Seleccione el puerto que desea utilizar";
         }
 
-        private void ConnectButton_Click(object sender, RoutedEventArgs e)
+        private async void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
             if (IsConnected)
             {
@@ -227,6 +227,7 @@ namespace ProDAQConfig
                 _serialPort.DtrEnable = true;
                 _serialPort.WriteLine("RI");
                 var response = _serialPort.ReadLine();
+                await LoadDeviceConfigurationAsync();
                 StatusMessage = $"Conectado a {SelectedPort} [{response}]";
                 _telemetryTimer.Start();
             }
@@ -289,6 +290,28 @@ namespace ProDAQConfig
             catch (Exception ex)
             {
                 StatusMessage = $"Error leyendo datos: {ex.Message}";
+            }
+        }
+
+        private async Task LoadDeviceConfigurationAsync()
+        {
+            try
+            {
+                var offsetResponse = await QueryDeviceAsync("RO");
+                if (double.TryParse(offsetResponse, NumberStyles.Float, CultureInfo.InvariantCulture, out var offset))
+                {
+                    OffsetValue = offset;
+                }
+
+                var gainResponse = await QueryDeviceAsync("RE");
+                if (double.TryParse(gainResponse, NumberStyles.Float, CultureInfo.InvariantCulture, out var gain) && gain > 0)
+                {
+                    EncoderGain = gain;
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"No se pudo leer la configuración: {ex.Message}";
             }
         }
 

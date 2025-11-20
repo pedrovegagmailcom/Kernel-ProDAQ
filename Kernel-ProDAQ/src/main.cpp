@@ -53,6 +53,7 @@ void setup() {
   IOsystem.begin();
   Encoder.begin();
   alarmas.inicializar();
+  InicializarConfiguracion();
   
   
   
