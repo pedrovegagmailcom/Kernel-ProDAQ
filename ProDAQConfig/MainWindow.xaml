@@ -69,18 +69,36 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="200" />
                         <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Text="Lectura de fuerza (R1):" FontWeight="Bold"  FontSize="14"/>
                     <TextBlock Grid.Column="1" Text="{Binding ForceReading}" />
+                    <Button Grid.Column="2"
+                            Content="0"
+                            Width="28"
+                            Height="28"
+                            Margin="8,0,0,0"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            Click="ZeroForceButton_Click" />
 
                     <TextBlock Grid.Row="1" Text="Lectura del encoder (R2):" FontWeight="Bold" FontSize="14" />
                     <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding EncoderReading}" />
+                    <Button Grid.Row="1"
+                            Grid.Column="2"
+                            Content="0"
+                            Width="28"
+                            Height="28"
+                            Margin="8,0,0,0"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Center"
+                            Click="ZeroEncoderButton_Click" />
 
                     <TextBlock Grid.Row="2" Text="Estado alarmas:" FontWeight="Bold" />
-                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding AlarmStatus}" TextWrapping="Wrap" FontSize="14"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding AlarmStatus}" TextWrapping="Wrap" FontSize="14" Grid.ColumnSpan="2"/>
 
-                    <Button Grid.Row="3" Grid.ColumnSpan="2" Content="Actualizar lecturas" Margin="0,12,0,0" Padding="12,4" HorizontalAlignment="Left" Click="ReadTelemetryButton_Click" />
+                    <Button Grid.Row="3" Grid.ColumnSpan="3" Content="Actualizar lecturas" Margin="0,12,0,0" Padding="12,4" HorizontalAlignment="Left" Click="ReadTelemetryButton_Click" />
                 </Grid>
             </GroupBox>
 
