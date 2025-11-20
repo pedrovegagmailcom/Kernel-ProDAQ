@@ -24,6 +24,11 @@ namespace ProDAQConfig
         private readonly object _serialLock = new object();
         private SerialPort _serialPort;
 
+        private double? _forceZeroReference;
+        private double? _encoderZeroReference;
+        private double? _lastForceValue;
+        private double? _lastEncoderValueMm;
+
         private string _selectedPort;
         private string _statusMessage = "Seleccione un puerto y presione Conectar";
         private string _forceReading = "--";
@@ -280,7 +285,8 @@ namespace ProDAQConfig
 
             try
             {
-                ForceReading = await QueryDeviceAsync("R1");
+                var forceResponse = await QueryDeviceAsync("R1");
+                UpdateForceReading(forceResponse);
                 var encoderResponse = await QueryDeviceAsync("R2");
                 ParseEncoderReading(encoderResponse);
                 var (alarmByte, statusByte) = await QueryAlarmBytesAsync();
@@ -470,12 +476,15 @@ namespace ProDAQConfig
 
         private void ParseEncoderReading(string encoderResponse)
         {
-            if (double.TryParse(encoderResponse, NumberStyles.Float, CultureInfo.InvariantCulture, out var millimeters))
+            if (TryParseDouble(encoderResponse, out var millimeters))
             {
-                EncoderReading = $"{millimeters:F3} mm";
+                _lastEncoderValueMm = millimeters;
+                var adjusted = millimeters - (_encoderZeroReference ?? 0.0);
+                EncoderReading = $"{adjusted:F3} mm";
             }
             else
             {
+                _lastEncoderValueMm = null;
                 EncoderReading = encoderResponse;
             }
         }
@@ -483,6 +492,54 @@ namespace ProDAQConfig
         private async void ApplyEncoderGainButton_Click(object sender, RoutedEventArgs e)
         {
             await ApplyEncoderGainAsync();
+        }
+
+        private void UpdateForceReading(string forceResponse)
+        {
+            if (TryParseDouble(forceResponse, out var force))
+            {
+                _lastForceValue = force;
+                var adjusted = force - (_forceZeroReference ?? 0.0);
+                ForceReading = $"{adjusted:F3}";
+            }
+            else
+            {
+                _lastForceValue = null;
+                ForceReading = forceResponse;
+            }
+        }
+
+        private void ZeroForceButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_lastForceValue.HasValue)
+            {
+                _forceZeroReference = _lastForceValue.Value;
+                ForceReading = $"{0.0:F3}";
+                StatusMessage = "Cero de fuerza aplicado";
+            }
+            else
+            {
+                StatusMessage = "No hay lectura de fuerza válida para poner a cero";
+            }
+        }
+
+        private void ZeroEncoderButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_lastEncoderValueMm.HasValue)
+            {
+                _encoderZeroReference = _lastEncoderValueMm.Value;
+                EncoderReading = $"{0.0:F3} mm";
+                StatusMessage = "Cero de encoder aplicado";
+            }
+            else
+            {
+                StatusMessage = "No hay lectura de encoder válida para poner a cero";
+            }
+        }
+
+        private static bool TryParseDouble(string input, out double value)
+        {
+            return double.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
         }
 
         private async Task ApplyEncoderGainAsync()
