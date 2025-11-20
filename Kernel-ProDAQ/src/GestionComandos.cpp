@@ -68,12 +68,13 @@ float normalizarVelocidad(float valor) {
     if (!isfinite(valor)) {
         return 0.0f;
     }
-    if (valor < 0.0f) {
-        valor = 0.0f;
-    }
+
     if (valor > VELOCIDAD_MAX_MM_MIN) {
         valor = VELOCIDAD_MAX_MM_MIN;
+    } else if (valor < -VELOCIDAD_MAX_MM_MIN) {
+        valor = -VELOCIDAD_MAX_MM_MIN;
     }
+
     return valor / VELOCIDAD_MAX_MM_MIN;
 }
 
@@ -86,19 +87,16 @@ void actualizarSalidaVelocidad() {
 
     if (stop || (!forward && !reverse)) {
         velocidad = 0.0f;
+    } else if (reverse && !forward && velocidad > 0.0f) {
+        velocidad = -velocidad;
+    } else if (forward && !reverse && velocidad < 0.0f) {
+        velocidad = -velocidad;
     }
 
     float fraccion = normalizarVelocidad(velocidad);
     int32_t delta = (int32_t)lrintf(fraccion * 32767.0f);
 
-    int32_t codigo = DAC_MID_CODE;
-    if (forward && !reverse) {
-        codigo += delta;
-    } else if (reverse && !forward) {
-        codigo -= delta;
-    } else {
-        codigo = DAC_MID_CODE;
-    }
+    int32_t codigo = DAC_MID_CODE + delta;
 
     codigo += dacZeroOffsetCounts;
 
@@ -179,11 +177,11 @@ float convertirParametroVelocidad(float parametro) {
         }
     }
 
-    if (parametro < 0.0f) {
-        parametro = 0.0f;
-    }
     if (parametro > VELOCIDAD_MAX_MM_MIN) {
         parametro = VELOCIDAD_MAX_MM_MIN;
+    }
+    if (parametro < -VELOCIDAD_MAX_MM_MIN) {
+        parametro = -VELOCIDAD_MAX_MM_MIN;
     }
 
     return parametro;
