@@ -284,7 +284,7 @@ void CommandR1(float param1, float param2) {
 }
 
 void CommandR2(float param1, float param2) {
-    unsigned long valor = Encoder.read_counter();
+    long valor = Encoder.read_counter();
 
     if (encoderStepsPerMillimeter <= 0.0f) {
         Serial.println("ERR");
