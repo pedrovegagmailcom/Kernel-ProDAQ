@@ -508,16 +508,22 @@ bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len) {
 
 // Función unificada para procesar el mensaje recibido según el protocolo activo
 bool ProcesarMensaje(uint8_t* Buf, uint32_t Len) {
-	
+
     if (protocoloActual == PROTOCOLO_NUEVO) {
-        
+
         // Si se recibe el comando "RI\r", cambiar a modo antiguo.
         if (Len == 2 && strncmp((char*)Buf, "RI", 2) == 0) {
-            
+
             protocoloActual = PROTOCOLO_VIEJO;
             return ProcesarComandoViejo(Buf, Len);
         }
-        return ProcesarComandoNuevo(Buf, Len);
+        if (ProcesarComandoNuevo(Buf, Len)) {
+            return true;
+        }
+
+        // Compatibilidad: si el formato con tuberías falla, intentar el protocolo viejo
+        protocoloActual = PROTOCOLO_VIEJO;
+        return ProcesarComandoViejo(Buf, Len);
     } else {
         return ProcesarComandoViejo(Buf, Len);
     }
