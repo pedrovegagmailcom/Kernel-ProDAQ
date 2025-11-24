@@ -130,6 +130,10 @@
         <!-- Offset -->
         <GroupBox Grid.Row="3" Header="Ganancia del encoder">
             <Grid Margin="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="150" />
@@ -143,6 +147,13 @@
                 <Button Grid.Column="2" Content="Aplicar" Margin="12,0" Padding="16,8" VerticalAlignment="Center"
                         Click="ApplyEncoderGainButton_Click" />
                 <TextBlock Grid.Column="3" Text="El valor se envía al kernel; la telemetría del encoder ya llegará en milímetros." TextWrapping="Wrap" Margin="12,0,0,0" />
+
+                <TextBlock Grid.Row="1" Text="Polaridad" VerticalAlignment="Center" />
+                <CheckBox Grid.Row="1" Grid.Column="1" Content="Invertir lectura"
+                          IsChecked="{Binding IsEncoderInverted, Mode=TwoWay}" />
+                <Button Grid.Row="1" Grid.Column="2" Content="Aplicar" Margin="12,8,12,0" Padding="16,8"
+                        VerticalAlignment="Center" Click="ApplyEncoderPolarityButton_OnClick" />
+                <TextBlock Grid.Row="1" Grid.Column="3" Text="Permite invertir el signo de la lectura del encoder para adaptarse a distintas máquinas." TextWrapping="Wrap" Margin="12,8,0,0" />
             </Grid>
         </GroupBox>
 
