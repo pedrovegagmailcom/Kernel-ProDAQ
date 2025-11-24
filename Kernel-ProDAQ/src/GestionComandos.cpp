@@ -52,16 +52,18 @@ float velocidadConsigna = 0.0f;
 float dacZeroOffsetVolts = 0.0f;
 int32_t dacZeroOffsetCounts = 0;
 float encoderStepsPerMillimeter = 1.0f;
+int32_t encoderPolaritySign = 1;
 
 struct ConfigStruct {
     float encoderGainStepsPerMillimeter;
     float dacOffsetVolts;
+    int32_t encoderPolaritySign;
 };
 
-constexpr uint32_t CONFIG_MAGIC = 0x43464731; // "CFG1"
+constexpr uint32_t CONFIG_MAGIC = 0x43464732; // "CFG2"
 constexpr uint32_t CONFIG_BASE_ADDR = 0;
 
-ConfigStruct configData{1.0f, 0.0f};
+ConfigStruct configData{1.0f, 0.0f, 1};
 ConfigStorage configStorage(sizeof(ConfigStruct), CONFIG_MAGIC, CONFIG_BASE_ADDR);
 
 float normalizarVelocidad(float valor) {
@@ -132,9 +134,18 @@ void actualizarGananciaEncoder(float pasosPorMilimetro) {
     encoderStepsPerMillimeter = pasosPorMilimetro;
 }
 
+void actualizarPolaridadEncoder(int32_t polaridad) {
+    if (polaridad >= 0) {
+        encoderPolaritySign = 1;
+    } else {
+        encoderPolaritySign = -1;
+    }
+}
+
 void guardarConfiguracionFlash() {
     configData.dacOffsetVolts              = dacZeroOffsetVolts;
     configData.encoderGainStepsPerMillimeter = encoderStepsPerMillimeter;
+    configData.encoderPolaritySign         = encoderPolaritySign;
 
     if (!configStorage.save(&configData)) {
         Serial.println("No se pudo guardar la configuración en flash");
@@ -144,6 +155,7 @@ void guardarConfiguracionFlash() {
 void aplicarConfiguracion(const ConfigStruct& cfg) {
     actualizarGananciaEncoder(cfg.encoderGainStepsPerMillimeter);
     actualizarOffsetDAC(cfg.dacOffsetVolts);
+    actualizarPolaridadEncoder(cfg.encoderPolaritySign);
 }
 
 void cargarConfiguracionFlash() {
@@ -325,8 +337,30 @@ void CommandRE(float param1, float param2) {
         Serial.println(encoderStepsPerMillimeter, 4);
 }
 
+void CommandWP(float param1, float param2) {
+        if (!isfinite(param1)) {
+                Serial.println("ERR");
+                return;
+        }
+
+        int32_t polaridad = static_cast<int32_t>(lrintf(param1));
+
+        if (polaridad == 0) {
+                Serial.println("ERR");
+                return;
+        }
+
+        actualizarPolaridadEncoder(polaridad);
+        guardarConfiguracionFlash();
+        Serial.println(encoderPolaritySign);
+}
+
+void CommandRP(float param1, float param2) {
+        Serial.println(encoderPolaritySign);
+}
+
 void CommandWI(float param1, float param2) {
-	Serial.println("");
+        Serial.println("");
 }
 
 void CommandR1(float param1, float param2) {
@@ -343,6 +377,7 @@ void CommandR2(float param1, float param2) {
 
     double pasos = static_cast<double>(valor);
     double milimetros = pasos / static_cast<double>(encoderStepsPerMillimeter);
+    milimetros *= static_cast<double>(encoderPolaritySign);
     Serial.println(milimetros, 4);
 }
 
@@ -385,20 +420,22 @@ ComandoMap comandoMaps[] = {
     {"RI", CommandRI, 10},
 	{"RC", CommandRC, 11},
 	{"RX", CommandRX, 12}, // Hay extensometro ?
-	{"WM", CommandWM, 13}, // Modo remoto
+        {"WM", CommandWM, 13}, // Modo remoto
         {"RV", CommandRV, 14}, // Velocdidad maxima ?
         {"WV", CommandWV, 15},
         {"WI", CommandWV, 16},
         {"WO", CommandWO, 17}, // Ajuste offset analógico en volts
         {"RO", CommandROffset, 18},
-        {"RE", CommandRE, 19},
-        {"R1", CommandR1, 20},
-        {"R2", CommandR2, 21},
-        {"RS", CommandRS, 22},
-        {"RH", CommandRH, 23}, // Ensayo en curso ?
-        {"WB", CommandRS, 24}, // Alarma baja velo
-        {"WT", CommandWT, 25},
-        {"WE", CommandWE, 26},
+        {"WE", CommandWE, 19},
+        {"RE", CommandRE, 20},
+        {"WP", CommandWP, 21},
+        {"RP", CommandRP, 22},
+        {"R1", CommandR1, 23},
+        {"R2", CommandR2, 24},
+        {"RS", CommandRS, 25},
+        {"RH", CommandRH, 26}, // Ensayo en curso ?
+        {"WB", CommandRS, 27}, // Alarma baja velo
+        {"WT", CommandWT, 28},
     {NULL, NULL, -1} // Marca el fin de la lista
 };
 

@@ -37,6 +37,7 @@ namespace ProDAQConfig
         private double _offsetValue;
         private double _encoderGain = 1.0;
         private double _speedSetpoint = 100.0;
+        private bool _isEncoderInverted;
         private bool _isConnected;
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -177,6 +178,19 @@ namespace ProDAQConfig
             }
         }
 
+        public bool IsEncoderInverted
+        {
+            get => _isEncoderInverted;
+            set
+            {
+                if (_isEncoderInverted != value)
+                {
+                    _isEncoderInverted = value;
+                    OnPropertyChanged(nameof(IsEncoderInverted));
+                }
+            }
+        }
+
         private async void TelemetryTimerOnTick(object sender, EventArgs e)
         {
             await RequestTelemetryAsync();
@@ -313,6 +327,12 @@ namespace ProDAQConfig
                 if (double.TryParse(gainResponse, NumberStyles.Float, CultureInfo.InvariantCulture, out var gain) && gain > 0)
                 {
                     EncoderGain = gain;
+                }
+
+                var polarityResponse = await QueryDeviceAsync("RP");
+                if (int.TryParse(polarityResponse, NumberStyles.Integer, CultureInfo.InvariantCulture, out var polarity))
+                {
+                    IsEncoderInverted = polarity < 0;
                 }
             }
             catch (Exception ex)
@@ -574,6 +594,43 @@ namespace ProDAQConfig
             catch (Exception ex)
             {
                 StatusMessage = $"Error aplicando ganancia: {ex.Message}";
+            }
+        }
+
+        private async void ApplyEncoderPolarityButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            await ApplyEncoderPolarityAsync();
+        }
+
+        private async Task ApplyEncoderPolarityAsync()
+        {
+            if (_serialPort == null || !IsConnected)
+            {
+                StatusMessage = "Debe conectarse a un puerto antes de aplicar la polaridad";
+                return;
+            }
+
+            var targetPolarity = IsEncoderInverted ? -1 : 1;
+
+            try
+            {
+                var command = $"WP {targetPolarity}";
+                await Task.Run(() =>
+                {
+                    lock (_serialLock)
+                    {
+                        _serialPort.WriteLine(command);
+                        _serialPort.ReadLine();
+                    }
+                });
+
+                StatusMessage = IsEncoderInverted
+                    ? "Polaridad del encoder configurada como invertida"
+                    : "Polaridad del encoder configurada como normal";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error aplicando polaridad: {ex.Message}";
             }
         }
 
