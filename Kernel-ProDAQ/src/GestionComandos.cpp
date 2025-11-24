@@ -60,6 +60,12 @@ struct ConfigStruct {
     int32_t encoderPolaritySign;
 };
 
+enum class ConfigParameter : uint8_t {
+    EncoderGain   = 1,
+    DacOffset     = 2,
+    EncoderPolarity = 3,
+};
+
 constexpr uint32_t CONFIG_MAGIC = 0x43464732; // "CFG2"
 constexpr uint32_t CONFIG_BASE_ADDR = 0;
 
@@ -172,6 +178,124 @@ void cargarConfiguracionFlash() {
         guardarConfiguracionFlash();
         Serial.println("Configuración por defecto guardada en flash");
     }
+}
+
+bool tryParseConfigParameter(const char* parametros, ConfigParameter& parameter, const char** valueStart) {
+    if (parametros == nullptr || strlen(parametros) < 2) {
+        return false;
+    }
+
+    char codigoStr[3] = {parametros[0], parametros[1], '\0'};
+    char* endPtr = nullptr;
+    long codigo = strtol(codigoStr, &endPtr, 10);
+
+    if (endPtr != (codigoStr + 2)) {
+        return false;
+    }
+
+    switch (codigo) {
+        case 1:
+            parameter = ConfigParameter::EncoderGain;
+            break;
+        case 2:
+            parameter = ConfigParameter::DacOffset;
+            break;
+        case 3:
+            parameter = ConfigParameter::EncoderPolarity;
+            break;
+        default:
+            return false;
+    }
+
+    const char* inicioValor = parametros + 2;
+    while (*inicioValor == ' ') {
+        ++inicioValor;
+    }
+
+    if (valueStart != nullptr) {
+        *valueStart = inicioValor;
+    }
+
+    return true;
+}
+
+bool procesarLecturaConfiguracion(ConfigParameter parameter) {
+    switch (parameter) {
+        case ConfigParameter::EncoderGain:
+            Serial.println(encoderStepsPerMillimeter, 4);
+            return true;
+        case ConfigParameter::DacOffset:
+            Serial.println(dacZeroOffsetVolts, 3);
+            return true;
+        case ConfigParameter::EncoderPolarity:
+            Serial.println(encoderPolaritySign);
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool procesarEscrituraConfiguracion(ConfigParameter parameter, const char* valueStart) {
+    if (valueStart == nullptr || *valueStart == '\0') {
+        return false;
+    }
+
+    char* endPtr = nullptr;
+
+    switch (parameter) {
+        case ConfigParameter::EncoderGain: {
+            float ganancia = strtof(valueStart, &endPtr);
+            if (endPtr == valueStart || !isfinite(ganancia) || ganancia <= 0.0f) {
+                return false;
+            }
+            actualizarGananciaEncoder(ganancia);
+            guardarConfiguracionFlash();
+            Serial.println(encoderStepsPerMillimeter, 4);
+            return true;
+        }
+        case ConfigParameter::DacOffset: {
+            float offset = strtof(valueStart, &endPtr);
+            if (endPtr == valueStart || !isfinite(offset)) {
+                return false;
+            }
+            actualizarOffsetDAC(offset);
+            actualizarSalidaVelocidad();
+            guardarConfiguracionFlash();
+            Serial.println(dacZeroOffsetVolts, 3);
+            return true;
+        }
+        case ConfigParameter::EncoderPolarity: {
+            int32_t polaridad = static_cast<int32_t>(strtol(valueStart, &endPtr, 10));
+            if (endPtr == valueStart || polaridad == 0) {
+                return false;
+            }
+            actualizarPolaridadEncoder(polaridad);
+            guardarConfiguracionFlash();
+            Serial.println(encoderPolaritySign);
+            return true;
+        }
+        default:
+            return false;
+    }
+}
+
+bool procesarComandoConfiguracion(const char* comando, const char* parametros) {
+    ConfigParameter parametro;
+    const char* valueStart = nullptr;
+
+    if (!tryParseConfigParameter(parametros, parametro, &valueStart)) {
+        return false;
+    }
+
+    if (strcmp(comando, "RP") == 0) {
+        return procesarLecturaConfiguracion(parametro);
+    }
+
+    if (strcmp(comando, "WP") == 0) {
+        return procesarEscrituraConfiguracion(parametro, valueStart);
+    }
+
+    return false;
 }
 
 float convertirParametroVelocidad(float parametro) {
@@ -517,7 +641,7 @@ bool ProcesarComandoNuevo(uint8_t* Buf, uint32_t Len) {
 bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len) {
     char mensaje[100];
 
-    
+
     if (Len >= sizeof(mensaje))
         return false;
     memcpy(mensaje, Buf, Len);
@@ -531,13 +655,24 @@ bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len) {
     comando[0] = mensaje[0];
     comando[1] = mensaje[1];
     comando[2] = '\0';
+
+    const char* parametros = (l > 2) ? mensaje + 2 : "";
+
+    if (strcmp(comando, "WP") == 0 || strcmp(comando, "RP") == 0) {
+        if (procesarComandoConfiguracion(comando, parametros)) {
+            return true;
+        }
+        Serial.println("ERR");
+        return true;
+    }
+
     float param1 = 0.0f;
     float param2 = 0.0f;
     // Si hay más caracteres, convertirlos a número (desde la posición 2)
     if (l > 2) {
-        param1 = atof(mensaje + 2);
+        param1 = atof(parametros);
     }
-    
+
     return ProcesarComando(comando, param1, param2);
 }
 

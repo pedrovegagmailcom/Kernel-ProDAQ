@@ -317,19 +317,19 @@ namespace ProDAQConfig
         {
             try
             {
-                var offsetResponse = await QueryDeviceAsync("RO");
+                var offsetResponse = await QueryDeviceAsync("RP02");
                 if (double.TryParse(offsetResponse, NumberStyles.Float, CultureInfo.InvariantCulture, out var offset))
                 {
                     OffsetValue = offset;
                 }
 
-                var gainResponse = await QueryDeviceAsync("RE");
+                var gainResponse = await QueryDeviceAsync("RP01");
                 if (double.TryParse(gainResponse, NumberStyles.Float, CultureInfo.InvariantCulture, out var gain) && gain > 0)
                 {
                     EncoderGain = gain;
                 }
 
-                var polarityResponse = await QueryDeviceAsync("RP");
+                var polarityResponse = await QueryDeviceAsync("RP03");
                 if (int.TryParse(polarityResponse, NumberStyles.Integer, CultureInfo.InvariantCulture, out var polarity))
                 {
                     IsEncoderInverted = polarity < 0;
@@ -460,7 +460,7 @@ namespace ProDAQConfig
             try
             {
                 var formattedValue = OffsetValue.ToString("F3", CultureInfo.InvariantCulture);
-                var command = $"WO {formattedValue}"; // Comando de ejemplo para ajustar offset
+                var command = $"WP02{formattedValue}";
                 await Task.Run(() =>
                 {
                     lock (_serialLock)
@@ -579,7 +579,7 @@ namespace ProDAQConfig
             try
             {
                 var formattedValue = EncoderGain.ToString("F4", CultureInfo.InvariantCulture);
-                var command = $"WE {formattedValue}";
+                var command = $"WP01{formattedValue}";
                 await Task.Run(() =>
                 {
                     lock (_serialLock)
@@ -614,7 +614,7 @@ namespace ProDAQConfig
 
             try
             {
-                var command = $"WP {targetPolarity}";
+                var command = $"WP03{targetPolarity}";
                 await Task.Run(() =>
                 {
                     lock (_serialLock)
