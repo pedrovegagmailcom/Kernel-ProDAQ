@@ -174,9 +174,7 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <TextBlock Grid.Row="0"
-                               Style="{StaticResource SectionTitleTextStyle}"
-                               Text="Telemetría (en tiempo real)"/>
+                   
 
                     <!-- Fuerza / Posición -->
                     <Grid Grid.Row="1" Margin="0,4,0,8">
@@ -189,17 +187,23 @@
                         <StackPanel Grid.Column="0">
                             <TextBlock Text="Fuerza (R1)"
                                        Foreground="{StaticResource TextSecondaryBrush}"/>
-                            <StackPanel Orientation="Horizontal">
+                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                 <TextBlock Text="{Binding ForceReading}"
                                            Style="{StaticResource BigValueTextStyle}"/>
+                                <!-- Si quieres kN, puedes añadir un TextBlock aquí -->
                             </StackPanel>
+                            <Button Content="Cero fuerza"
+                                    Width="100"
+                                    Margin="0,6,0,0"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Click="ZeroForceButton_Click"/>
                         </StackPanel>
 
                         <!-- Posición -->
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Posición (R2)"
                                        Foreground="{StaticResource TextSecondaryBrush}"/>
-                            <StackPanel Orientation="Horizontal">
+                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                 <TextBlock Text="{Binding EncoderReading}"
                                            Style="{StaticResource BigValueTextStyle}"/>
                                 <TextBlock Text=" mm"
@@ -207,6 +211,11 @@
                                            FontSize="16"
                                            Margin="4,6,0,0"/>
                             </StackPanel>
+                            <Button Content="Cero encoder"
+                                    Width="110"
+                                    Margin="0,6,0,0"
+                                    Style="{StaticResource SecondaryButtonStyle}"
+                                    Click="ZeroEncoderButton_Click"/>
                         </StackPanel>
                     </Grid>
 
@@ -252,7 +261,7 @@
                                     <ColumnDefinition Width="24"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,8,0">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
@@ -276,7 +285,7 @@
                                     <ColumnDefinition Width="24"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,8,0">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
@@ -300,7 +309,7 @@
                                     <ColumnDefinition Width="24"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,8,0">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
@@ -324,7 +333,7 @@
                                     <ColumnDefinition Width="24"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,8,0">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
@@ -351,7 +360,7 @@
                                     <ColumnDefinition Width="24"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,8,0">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
@@ -375,7 +384,7 @@
                                     <ColumnDefinition Width="24"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,8,0">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
@@ -399,7 +408,7 @@
                                     <ColumnDefinition Width="24"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,8,0">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
@@ -423,7 +432,7 @@
                                     <ColumnDefinition Width="24"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,8,0">
                                     <Border.Style>
                                         <Style TargetType="Border">
                                             <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
@@ -453,17 +462,24 @@
 
                     <StackPanel HorizontalAlignment="Center" Margin="0,10,0,0">
                         <Button Content="▲"
+                                FontSize="30"
                                 Width="80"
+                                Height="50"
                                 Margin="0,0,0,6"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Click="MoveUpButton_Click"/>
                         <Button Content="■"
+                                FontSize="30"
                                 Width="80"
+                                Height="50"
                                 Margin="0,0,0,6"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Click="StopButton_Click"/>
                         <Button Content="▼"
+                                FontSize="30"
                                 Width="80"
+                                Height="50"
+                                Margin="0,0,0,6"
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Click="MoveDownButton_Click"/>
                     </StackPanel>
@@ -489,7 +505,7 @@
                                 Click="ApplyEncoderGainButton_Click"/>
                     </StackPanel>
 
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
                         <CheckBox Content="Invertir lectura"
                                   IsChecked="{Binding IsEncoderInverted, Mode=TwoWay}"
                                   Foreground="{StaticResource TextSecondaryBrush}"
@@ -498,16 +514,6 @@
                                 Style="{StaticResource SecondaryButtonStyle}"
                                 Margin="8,0,0,0"
                                 Click="ApplyEncoderPolarityButton_OnClick"/>
-                    </StackPanel>
-
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
-                        <Button Content="Cero fuerza"
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Click="ZeroForceButton_Click"/>
-                        <Button Content="Cero encoder"
-                                Style="{StaticResource SecondaryButtonStyle}"
-                                Margin="8,0,0,0"
-                                Click="ZeroEncoderButton_Click"/>
                     </StackPanel>
                 </StackPanel>
             </Border>

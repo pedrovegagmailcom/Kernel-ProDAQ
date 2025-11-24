@@ -12,9 +12,6 @@ using System.Windows.Threading;
 
 namespace ProDAQConfig
 {
-    /// <summary>
-    /// Lógica de interacción para MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
         private const double MaxSpeedSetpoint = 500.0;
@@ -40,7 +37,7 @@ namespace ProDAQConfig
         private bool _isEncoderInverted;
         private bool _isConnected;
 
-        // Estado de alarmas individuales (para los pilotos)
+        // Estado de alarmas individuales
         private bool _alarmMotorActive;
         private bool _alarmCompresorActive;
         private bool _alarmFciActive;
@@ -54,7 +51,7 @@ namespace ProDAQConfig
         private int _activeAlarmCount;
         private bool _hasActiveAlarms;
 
-        // Estado de bits de estado (por si quieres usar pilotos en el futuro)
+        // Bits de estado
         private bool _statusUpDownOn;
         private bool _statusStopOn;
         private bool _statusRemoteOn;
@@ -210,7 +207,7 @@ namespace ProDAQConfig
             }
         }
 
-        #region Propiedades de alarmas para los pilotos
+        #region Propiedades de alarmas
 
         public bool AlarmMotorActive
         {
@@ -342,7 +339,6 @@ namespace ProDAQConfig
             }
         }
 
-        // Por si quieres usarlos más adelante para pilotos de estado
         public bool StatusUpDownOn
         {
             get => _statusUpDownOn;
@@ -616,7 +612,6 @@ namespace ProDAQConfig
                 }
             }
 
-            // Actualizamos propiedades para los pilotos
             AlarmMotorActive = (alarmByte & (1 << 0)) != 0;
             AlarmCompresorActive = (alarmByte & (1 << 1)) != 0;
             AlarmFCIActive = (alarmByte & (1 << 2)) != 0;
@@ -633,7 +628,6 @@ namespace ProDAQConfig
                 ? $"Alarmas: {string.Join(", ", activeAlarms)}"
                 : "Sin alarmas";
 
-            // Bits de estado
             StatusUpDownOn = (statusByte & (1 << 0)) != 0;
             StatusStopOn = (statusByte & (1 << 1)) != 0;
             StatusRemoteOn = (statusByte & (1 << 2)) != 0;
@@ -679,7 +673,7 @@ namespace ProDAQConfig
                     lock (_serialLock)
                     {
                         _serialPort.WriteLine(command);
-                        _serialPort.ReadLine(); // se asume eco o confirmación
+                        _serialPort.ReadLine();
                     }
                 });
 
@@ -713,7 +707,8 @@ namespace ProDAQConfig
             {
                 _lastEncoderValueMm = millimeters;
                 var adjusted = millimeters - (_encoderZeroReference ?? 0.0);
-                EncoderReading = $"{adjusted:F3} mm";
+                // AHORA SIN "mm", la unidad la añade el XAML
+                EncoderReading = $"{adjusted:F3}";
             }
             else
             {
@@ -761,7 +756,7 @@ namespace ProDAQConfig
             if (_lastEncoderValueMm.HasValue)
             {
                 _encoderZeroReference = _lastEncoderValueMm.Value;
-                EncoderReading = $"{0.0:F3} mm";
+                EncoderReading = $"{0.0:F3}";
                 StatusMessage = "Cero de encoder aplicado";
             }
             else
