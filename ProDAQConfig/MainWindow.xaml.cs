@@ -40,6 +40,25 @@ namespace ProDAQConfig
         private bool _isEncoderInverted;
         private bool _isConnected;
 
+        // Estado de alarmas individuales (para los pilotos)
+        private bool _alarmMotorActive;
+        private bool _alarmCompresorActive;
+        private bool _alarmFciActive;
+        private bool _alarmTraccionActive;
+        private bool _alarmFcsActive;
+        private bool _alarmSetaActive;
+        private bool _alarmCeroActive;
+        private bool _alarmCelulaActive;
+
+        // Resumen
+        private int _activeAlarmCount;
+        private bool _hasActiveAlarms;
+
+        // Estado de bits de estado (por si quieres usar pilotos en el futuro)
+        private bool _statusUpDownOn;
+        private bool _statusStopOn;
+        private bool _statusRemoteOn;
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         public MainWindow()
@@ -191,6 +210,180 @@ namespace ProDAQConfig
             }
         }
 
+        #region Propiedades de alarmas para los pilotos
+
+        public bool AlarmMotorActive
+        {
+            get => _alarmMotorActive;
+            private set
+            {
+                if (_alarmMotorActive != value)
+                {
+                    _alarmMotorActive = value;
+                    OnPropertyChanged(nameof(AlarmMotorActive));
+                }
+            }
+        }
+
+        public bool AlarmCompresorActive
+        {
+            get => _alarmCompresorActive;
+            private set
+            {
+                if (_alarmCompresorActive != value)
+                {
+                    _alarmCompresorActive = value;
+                    OnPropertyChanged(nameof(AlarmCompresorActive));
+                }
+            }
+        }
+
+        public bool AlarmFCIActive
+        {
+            get => _alarmFciActive;
+            private set
+            {
+                if (_alarmFciActive != value)
+                {
+                    _alarmFciActive = value;
+                    OnPropertyChanged(nameof(AlarmFCIActive));
+                }
+            }
+        }
+
+        public bool AlarmTraccionActive
+        {
+            get => _alarmTraccionActive;
+            private set
+            {
+                if (_alarmTraccionActive != value)
+                {
+                    _alarmTraccionActive = value;
+                    OnPropertyChanged(nameof(AlarmTraccionActive));
+                }
+            }
+        }
+
+        public bool AlarmFCSActive
+        {
+            get => _alarmFcsActive;
+            private set
+            {
+                if (_alarmFcsActive != value)
+                {
+                    _alarmFcsActive = value;
+                    OnPropertyChanged(nameof(AlarmFCSActive));
+                }
+            }
+        }
+
+        public bool AlarmSetaActive
+        {
+            get => _alarmSetaActive;
+            private set
+            {
+                if (_alarmSetaActive != value)
+                {
+                    _alarmSetaActive = value;
+                    OnPropertyChanged(nameof(AlarmSetaActive));
+                }
+            }
+        }
+
+        public bool AlarmCeroActive
+        {
+            get => _alarmCeroActive;
+            private set
+            {
+                if (_alarmCeroActive != value)
+                {
+                    _alarmCeroActive = value;
+                    OnPropertyChanged(nameof(AlarmCeroActive));
+                }
+            }
+        }
+
+        public bool AlarmCelulaActive
+        {
+            get => _alarmCelulaActive;
+            private set
+            {
+                if (_alarmCelulaActive != value)
+                {
+                    _alarmCelulaActive = value;
+                    OnPropertyChanged(nameof(AlarmCelulaActive));
+                }
+            }
+        }
+
+        public int ActiveAlarmCount
+        {
+            get => _activeAlarmCount;
+            private set
+            {
+                if (_activeAlarmCount != value)
+                {
+                    _activeAlarmCount = value;
+                    OnPropertyChanged(nameof(ActiveAlarmCount));
+                }
+            }
+        }
+
+        public bool HasActiveAlarms
+        {
+            get => _hasActiveAlarms;
+            private set
+            {
+                if (_hasActiveAlarms != value)
+                {
+                    _hasActiveAlarms = value;
+                    OnPropertyChanged(nameof(HasActiveAlarms));
+                }
+            }
+        }
+
+        // Por si quieres usarlos más adelante para pilotos de estado
+        public bool StatusUpDownOn
+        {
+            get => _statusUpDownOn;
+            private set
+            {
+                if (_statusUpDownOn != value)
+                {
+                    _statusUpDownOn = value;
+                    OnPropertyChanged(nameof(StatusUpDownOn));
+                }
+            }
+        }
+
+        public bool StatusStopOn
+        {
+            get => _statusStopOn;
+            private set
+            {
+                if (_statusStopOn != value)
+                {
+                    _statusStopOn = value;
+                    OnPropertyChanged(nameof(StatusStopOn));
+                }
+            }
+        }
+
+        public bool StatusRemoteOn
+        {
+            get => _statusRemoteOn;
+            private set
+            {
+                if (_statusRemoteOn != value)
+                {
+                    _statusRemoteOn = value;
+                    OnPropertyChanged(nameof(StatusRemoteOn));
+                }
+            }
+        }
+
+        #endregion
+
         private async void TelemetryTimerOnTick(object sender, EventArgs e)
         {
             await RequestTelemetryAsync();
@@ -301,10 +494,13 @@ namespace ProDAQConfig
             {
                 var forceResponse = await QueryDeviceAsync("R1");
                 UpdateForceReading(forceResponse);
+
                 var encoderResponse = await QueryDeviceAsync("R2");
                 ParseEncoderReading(encoderResponse);
+
                 var (alarmByte, statusByte) = await QueryAlarmBytesAsync();
                 AlarmStatus = FormatAlarmStatus(alarmByte, statusByte);
+
                 StatusMessage = "Lecturas actualizadas";
             }
             catch (Exception ex)
@@ -420,15 +616,33 @@ namespace ProDAQConfig
                 }
             }
 
+            // Actualizamos propiedades para los pilotos
+            AlarmMotorActive = (alarmByte & (1 << 0)) != 0;
+            AlarmCompresorActive = (alarmByte & (1 << 1)) != 0;
+            AlarmFCIActive = (alarmByte & (1 << 2)) != 0;
+            AlarmTraccionActive = (alarmByte & (1 << 3)) != 0;
+            AlarmFCSActive = (alarmByte & (1 << 4)) != 0;
+            AlarmSetaActive = (alarmByte & (1 << 5)) != 0;
+            AlarmCeroActive = (alarmByte & (1 << 6)) != 0;
+            AlarmCelulaActive = (alarmByte & (1 << 7)) != 0;
+
+            ActiveAlarmCount = activeAlarms.Count;
+            HasActiveAlarms = ActiveAlarmCount > 0;
+
             var alarmText = activeAlarms.Count > 0
                 ? $"Alarmas: {string.Join(", ", activeAlarms)}"
                 : "Sin alarmas";
 
+            // Bits de estado
+            StatusUpDownOn = (statusByte & (1 << 0)) != 0;
+            StatusStopOn = (statusByte & (1 << 1)) != 0;
+            StatusRemoteOn = (statusByte & (1 << 2)) != 0;
+
             var statusDescriptions = new[]
             {
-                ($"Up/Down", 0),
-                ($"Stop", 1),
-                ($"Remoto", 2)
+                ("Up/Down", 0),
+                ("Stop", 1),
+                ("Remoto", 2)
             };
 
             var statusParts = new List<string>();
@@ -442,7 +656,6 @@ namespace ProDAQConfig
 
             return $"{alarmText} | {statusText}";
         }
-
 
         private async void ApplyOffsetButton_Click(object sender, RoutedEventArgs e)
         {

@@ -1,213 +1,588 @@
 <Window x:Class="ProDAQConfig.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:ProDAQConfig"
-        mc:Ignorable="d"
-        Title="ProDAQ Config" Height="800" Width="900">
-    <Grid Margin="16">
+        Title="Configuración de ProDAQ"
+        Width="1100"
+        Height="720"
+        Background="#0B1120"
+        FontFamily="Segoe UI"
+        FontSize="12">
+    <Window.Resources>
+
+        <!-- Colores base -->
+        <SolidColorBrush x:Key="CardBackgroundBrush" Color="#111827"/>
+        <SolidColorBrush x:Key="CardBorderBrush" Color="#1F2937"/>
+        <SolidColorBrush x:Key="PrimaryAccentBrush" Color="#2563EB"/>
+        <SolidColorBrush x:Key="PrimaryAccentDarkBrush" Color="#1D4ED8"/>
+        <SolidColorBrush x:Key="TextPrimaryBrush" Color="#F9FAFB"/>
+        <SolidColorBrush x:Key="TextSecondaryBrush" Color="#9CA3AF"/>
+        <SolidColorBrush x:Key="TextMutedBrush" Color="#6B7280"/>
+
+        <!-- Colores alarmas -->
+        <SolidColorBrush x:Key="AlarmOkBrush" Color="#16A34A"/>
+        <!-- Verde -->
+        <SolidColorBrush x:Key="AlarmActiveBrush" Color="#DC2626"/>
+        <!-- Rojo -->
+        <SolidColorBrush x:Key="AlarmBackgroundBrush" Color="#111827"/>
+
+        <!-- Estilo de tarjeta -->
+        <Style x:Key="CardBorderStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource CardBackgroundBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource CardBorderBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="10"/>
+        </Style>
+
+        <!-- Botones principales -->
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{StaticResource PrimaryAccentBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource PrimaryAccentDarkBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="Margin" Value="4,0"/>
+            <Setter Property="MinWidth" Value="80"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
+                            <ContentPresenter VerticalAlignment="Center"
+                                              HorizontalAlignment="Center"
+                                              Margin="6,2"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="{StaticResource PrimaryAccentDarkBrush}"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#374151"/>
+                    <Setter Property="BorderBrush" Value="#4B5563"/>
+                    <Setter Property="Foreground" Value="#9CA3AF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Botones secundarios -->
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource PrimaryButtonStyle}">
+            <Setter Property="Background" Value="#111827"/>
+            <Setter Property="BorderBrush" Value="#4B5563"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#1F2937"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Títulos de bloque -->
+        <Style x:Key="SectionTitleTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <!-- Valores grandes -->
+        <Style x:Key="BigValueTextStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+
+    </Window.Resources>
+
+    <Grid Margin="10">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto"/>
+            <!-- Barra conexión -->
+            <RowDefinition Height="*"/>
+            <!-- Contenido principal -->
+            <RowDefinition Height="Auto"/>
+            <!-- Estado inferior -->
         </Grid.RowDefinitions>
 
-        <TextBlock Text="Configuración de ProDAQ" FontSize="24" FontWeight="Bold" />
-
-        <!-- Conexión serie -->
-        <GroupBox Grid.Row="1" Header="Conexión" Margin="0,12,0,0">
-            <Grid Margin="12">
+        <!-- BARRA SUPERIOR: CONEXIÓN -->
+        <Border Grid.Row="0" Style="{StaticResource CardBorderStyle}">
+            <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="200" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="3*"/>
+                    <ColumnDefinition Width="2*"/>
                 </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
 
-                <TextBlock Text="Puerto" VerticalAlignment="Center" Margin="0,0,8,0" />
-                <ComboBox x:Name="PortsComboBox"
-                          Grid.Column="1"
-                          ItemsSource="{Binding AvailablePorts}"
-                          SelectedItem="{Binding SelectedPort, Mode=TwoWay}"
-                          MinWidth="160" />
-                <Button Grid.Column="2" Content="Actualizar" Margin="8,0" Padding="12,4" Click="RefreshPortsButton_Click" />
-                <Button Grid.Column="3" Content="Conectar" Margin="8,0" Padding="12,4" Click="ConnectButton_Click" />
-                <Button Grid.Column="4" HorizontalAlignment="Left" Content="Desconectar" Padding="12,4" Click="DisconnectButton_Click" />
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Puerto" Foreground="{StaticResource TextSecondaryBrush}"
+                               VerticalAlignment="Center" Margin="0,0,6,0"/>
+                    <ComboBox Width="120"
+                              ItemsSource="{Binding AvailablePorts}"
+                              SelectedItem="{Binding SelectedPort}"
+                              Margin="0,0,8,0"/>
 
-                <TextBlock Grid.Row="1" Grid.ColumnSpan="5" Text="{Binding StatusMessage}" Foreground="Gray" Margin="0,12,0,0" />
+                    <Button Content="Actualizar"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Click="RefreshPortsButton_Click"/>
+
+                    <Button Content="Conectar"
+                            Style="{StaticResource PrimaryButtonStyle}"
+                            Click="ConnectButton_Click"
+                            Margin="8,0,0,0"/>
+
+                    <Button Content="Desconectar"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Click="DisconnectButton_Click"
+                            Margin="4,0,0,0"/>
+                </StackPanel>
+
+                <TextBlock Grid.Column="1"
+                           Text="{Binding StatusMessage}"
+                           Foreground="{StaticResource TextSecondaryBrush}"
+                           HorizontalAlignment="Right"
+                           VerticalAlignment="Center"/>
             </Grid>
-        </GroupBox>
+        </Border>
 
-        <!-- Lecturas -->
-        <Grid Grid.Row="2" Margin="0,12,0,12">
+        <!-- CONTENIDO PRINCIPAL -->
+        <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="2*" />
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="2*"/>
+                <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
-                <RowDefinition Height="Auto" />
-                <RowDefinition Height="Auto" />
+                <RowDefinition Height="2*"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <GroupBox Header="Telemetría" Grid.Column="0" Margin="0,0,12,0">
-                <Grid Margin="12">
+            <!-- TELEMETRÍA + ALARMAS -->
+            <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource CardBorderStyle}">
+                <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="200" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
 
-                    <TextBlock Text="Lectura de fuerza (R1):" FontWeight="Bold"  FontSize="14"/>
-                    <TextBlock Grid.Column="1" Text="{Binding ForceReading}" />
-                    <Button Grid.Column="2"
-                            Content="0"
-                            Width="28"
-                            Height="28"
-                            Margin="8,0,0,0"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Center"
-                            Click="ZeroForceButton_Click" />
+                    <TextBlock Grid.Row="0"
+                               Style="{StaticResource SectionTitleTextStyle}"
+                               Text="Telemetría (en tiempo real)"/>
 
-                    <TextBlock Grid.Row="1" Text="Lectura del encoder (R2):" FontWeight="Bold" FontSize="14" />
-                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding EncoderReading}" />
-                    <Button Grid.Row="1"
-                            Grid.Column="2"
-                            Content="0"
-                            Width="28"
-                            Height="28"
-                            Margin="8,0,0,0"
-                            HorizontalAlignment="Left"
-                            VerticalAlignment="Center"
-                            Click="ZeroEncoderButton_Click" />
+                    <!-- Fuerza / Posición -->
+                    <Grid Grid.Row="1" Margin="0,4,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
 
-                    <TextBlock Grid.Row="2" Text="Estado alarmas:" FontWeight="Bold" />
-                    <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding AlarmStatus}" TextWrapping="Wrap" FontSize="14" Grid.ColumnSpan="2"/>
+                        <!-- Fuerza -->
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Fuerza (R1)"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding ForceReading}"
+                                           Style="{StaticResource BigValueTextStyle}"/>
+                            </StackPanel>
+                        </StackPanel>
 
-                    <Button Grid.Row="3" Grid.ColumnSpan="3" Content="Actualizar lecturas" Margin="0,12,0,0" Padding="12,4" HorizontalAlignment="Left" Click="ReadTelemetryButton_Click" />
+                        <!-- Posición -->
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Posición (R2)"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding EncoderReading}"
+                                           Style="{StaticResource BigValueTextStyle}"/>
+                                <TextBlock Text=" mm"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="16"
+                                           Margin="4,6,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Barra resumen de alarmas -->
+                    <Border Grid.Row="2"
+                            CornerRadius="4"
+                            Padding="8"
+                            Margin="0,0,0,8">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding HasActiveAlarms}" Value="True">
+                                        <Setter Property="Background" Value="{StaticResource AlarmActiveBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Ellipse Width="10" Height="10" Fill="White" Margin="0,0,6,0"/>
+                            <TextBlock Foreground="White" FontWeight="SemiBold">
+                                <TextBlock.Text>
+                                    <MultiBinding StringFormat="{}ALARMAS ACTIVAS: {0}">
+                                        <Binding Path="ActiveAlarmCount"/>
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Detalle estilo "pilotos" -->
+                    <Grid Grid.Row="3">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Columna izquierda -->
+                        <StackPanel Grid.Column="0">
+                            <!-- Motor -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AlarmMotorActive}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource AlarmActiveBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                                <TextBlock Grid.Column="1"
+                                           Text="Motor"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- Compresor -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AlarmCompresorActive}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource AlarmActiveBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                                <TextBlock Grid.Column="1"
+                                           Text="Compresor"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- FCI -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AlarmFCIActive}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource AlarmActiveBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                                <TextBlock Grid.Column="1"
+                                           Text="FCI"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- Tracción -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AlarmTraccionActive}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource AlarmActiveBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                                <TextBlock Grid.Column="1"
+                                           Text="Tracción"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+                        </StackPanel>
+
+                        <!-- Columna derecha -->
+                        <StackPanel Grid.Column="1">
+                            <!-- FCS -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AlarmFCSActive}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource AlarmActiveBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                                <TextBlock Grid.Column="1"
+                                           Text="FCS"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- Seta -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AlarmSetaActive}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource AlarmActiveBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                                <TextBlock Grid.Column="1"
+                                           Text="Seta"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- Cero -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AlarmCeroActive}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource AlarmActiveBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                                <TextBlock Grid.Column="1"
+                                           Text="Cero"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- Célula -->
+                            <Grid Margin="0,0,0,4">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="24"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" CornerRadius="3" Margin="0,0,6,0">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="{StaticResource AlarmOkBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding AlarmCelulaActive}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource AlarmActiveBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Border.Style>
+                                </Border>
+                                <TextBlock Grid.Column="1"
+                                           Text="Célula"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
                 </Grid>
-            </GroupBox>
+            </Border>
 
-            <GroupBox Header="Control manual" Grid.Column="1">
-                <StackPanel Margin="12" VerticalAlignment="Center">
-                    <Button Padding="16,8" Margin="0,0,0,8" Width="100" Height="30"
-                            ToolTip="Subir"
-                            Click="MoveUpButton_Click"
-                            IsEnabled="{Binding IsConnected}">
-                        <TextBlock Text="▲" FontSize="10" HorizontalAlignment="Center" />
-                    </Button>
-                    <Button Padding="16,8" Margin="0,0,0,8" Width="100" Height="30"
-                        ToolTip="Parar"
-                        Click="StopButton_Click"
-                        IsEnabled="{Binding IsConnected}">
-                        <TextBlock Text="■" FontSize="10" HorizontalAlignment="Center" />
-                    </Button>
-                    <Button Padding="16,8"  Width="100" Height="30"
-                            ToolTip="Bajar"
-                            Click="MoveDownButton_Click"
-                            IsEnabled="{Binding IsConnected}">
-                        <TextBlock Text="▼" FontSize="10" HorizontalAlignment="Center" />
-                    </Button>
-                    
+            <!-- CONTROL MANUAL -->
+            <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource CardBorderStyle}">
+                <StackPanel>
+                    <TextBlock Text="Control manual"
+                               Style="{StaticResource SectionTitleTextStyle}"/>
+
+                    <StackPanel HorizontalAlignment="Center" Margin="0,10,0,0">
+                        <Button Content="▲"
+                                Width="80"
+                                Margin="0,0,0,6"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Click="MoveUpButton_Click"/>
+                        <Button Content="■"
+                                Width="80"
+                                Margin="0,0,0,6"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Click="StopButton_Click"/>
+                        <Button Content="▼"
+                                Width="80"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Click="MoveDownButton_Click"/>
+                    </StackPanel>
                 </StackPanel>
-            </GroupBox>
+            </Border>
+
+            <!-- CONFIGURACIÓN ENCODER -->
+            <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource CardBorderStyle}">
+                <StackPanel>
+                    <TextBlock Text="Configuración del encoder"
+                               Style="{StaticResource SectionTitleTextStyle}"/>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="Ganancia (pasos/mm):"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Margin="0,0,6,0"/>
+                        <TextBox Width="80"
+                                 Text="{Binding EncoderGain, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,6,0"/>
+                        <Button Content="Aplicar"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Click="ApplyEncoderGainButton_Click"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <CheckBox Content="Invertir lectura"
+                                  IsChecked="{Binding IsEncoderInverted, Mode=TwoWay}"
+                                  Foreground="{StaticResource TextSecondaryBrush}"
+                                  VerticalAlignment="Center"/>
+                        <Button Content="Aplicar"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Margin="8,0,0,0"
+                                Click="ApplyEncoderPolarityButton_OnClick"/>
+                    </StackPanel>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <Button Content="Cero fuerza"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Click="ZeroForceButton_Click"/>
+                        <Button Content="Cero encoder"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Margin="8,0,0,0"
+                                Click="ZeroEncoderButton_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- VELOCIDAD ENSAYO -->
+            <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource CardBorderStyle}">
+                <StackPanel>
+                    <TextBlock Text="Velocidad de ensayo"
+                               Style="{StaticResource SectionTitleTextStyle}"/>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="Velocidad (mm/min):"
+                                   VerticalAlignment="Center"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   Margin="0,0,6,0"/>
+                        <TextBox Width="80"
+                                 Text="{Binding SpeedSetpoint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Margin="0,0,6,0"/>
+                        <Button Content="Aplicar"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Click="ApplySpeedSetpointButton_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- AJUSTE OFFSET ANALÓGICO -->
+            <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource CardBorderStyle}">
+                <StackPanel>
+                    <TextBlock Text="Ajuste de salida analógica"
+                               Style="{StaticResource SectionTitleTextStyle}"/>
+
+                    <TextBlock Text="Offset (V):"
+                               Foreground="{StaticResource TextSecondaryBrush}"/>
+
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                        <Slider Width="300"
+                                Minimum="-5"
+                                Maximum="5"
+                                Value="{Binding OffsetValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                TickFrequency="0.1"
+                                IsSnapToTickEnabled="True"/>
+                        <TextBlock Text="{Binding OffsetValue, StringFormat=F3}"
+                                   Foreground="{StaticResource TextPrimaryBrush}"
+                                   Margin="8,0,0,0"
+                                   VerticalAlignment="Center"/>
+                        <Button Content="Aplicar"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Margin="8,0,0,0"
+                                Click="ApplyOffsetButton_Click"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Botón lecturas manuales -->
+            <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource CardBorderStyle}">
+                <StackPanel>
+                    <TextBlock Text="Lecturas"
+                               Style="{StaticResource SectionTitleTextStyle}"/>
+                    <Button Content="Actualizar lecturas"
+                            Style="{StaticResource SecondaryButtonStyle}"
+                            Width="160"
+                            Click="ReadTelemetryButton_Click"/>
+                </StackPanel>
+            </Border>
         </Grid>
 
-        <!-- Offset -->
-        <GroupBox Grid.Row="3" Header="Ganancia del encoder">
-            <Grid Margin="12">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="150" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Text="pasos por mm" VerticalAlignment="Center" />
-                <TextBox Grid.Column="1" Width="120" HorizontalContentAlignment="Right"
-                         Text="{Binding EncoderGain, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F4}" />
-                <Button Grid.Column="2" Content="Aplicar" Margin="12,0" Padding="16,8" VerticalAlignment="Center"
-                        Click="ApplyEncoderGainButton_Click" />
-                <TextBlock Grid.Column="3" Text="El valor se envía al kernel; la telemetría del encoder ya llegará en milímetros." TextWrapping="Wrap" Margin="12,0,0,0" />
-
-                <TextBlock Grid.Row="1" Text="Polaridad" VerticalAlignment="Center" />
-                <CheckBox Grid.Row="1" Grid.Column="1" Content="Invertir lectura"
-                          IsChecked="{Binding IsEncoderInverted, Mode=TwoWay}" />
-                <Button Grid.Row="1" Grid.Column="2" Content="Aplicar" Margin="12,8,12,0" Padding="16,8"
-                        VerticalAlignment="Center" Click="ApplyEncoderPolarityButton_OnClick" />
-                <TextBlock Grid.Row="1" Grid.Column="3" Text="Permite invertir el signo de la lectura del encoder para adaptarse a distintas máquinas." TextWrapping="Wrap" Margin="12,8,0,0" />
-            </Grid>
-        </GroupBox>
-
-        <GroupBox Grid.Row="4" Header="Consigna de velocidad">
-            <Grid Margin="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="150" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-
-                <TextBlock Text="Velocidad (mm/min)" VerticalAlignment="Center" />
-                <TextBox Grid.Column="1"
-                         Width="120"
-                         HorizontalContentAlignment="Right"
-                         Text="{Binding SpeedSetpoint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F1}" />
-                <Button Grid.Column="2"
-                        Content="Aplicar"
-                        Margin="12,0"
-                        Padding="16,8"
-                        VerticalAlignment="Center"
-                        IsEnabled="{Binding IsConnected}"
-                        Click="ApplySpeedSetpointButton_Click" />
-                <TextBlock Grid.Column="3"
-                           Text="Se envía el comando WV al kernel (máx. 500 mm/min)."
-                           TextWrapping="Wrap"
-                           Margin="12,0,0,0" />
-            </Grid>
-        </GroupBox>
-
-        <GroupBox Grid.Row="5" Header="Ajuste de offset de salida analógica">
-            <Grid Margin="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel>
-                    <TextBlock Text="Offset (V)" FontWeight="SemiBold" />
-                    <Slider Minimum="-5" Maximum="5" TickFrequency="0.1" IsSnapToTickEnabled="True"
-                            Value="{Binding OffsetValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
-                </StackPanel>
-
-                <StackPanel Grid.Column="1" Margin="12,0" VerticalAlignment="Center">
-                    <TextBlock Text="Valor" FontWeight="SemiBold" />
-                    <TextBox Width="100" HorizontalContentAlignment="Right"
-                             Text="{Binding OffsetValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, StringFormat=F3}" />
-                </StackPanel>
-
-                <Button Grid.Column="2" Content="Aplicar" Padding="16,8" VerticalAlignment="Center"
-                        Click="ApplyOffsetButton_Click" />
-            </Grid>
-        </GroupBox>
+        <!-- BARRA INFERIOR -->
+        <Border Grid.Row="2"
+                Background="#020617"
+                Padding="6"
+                Margin="10,0,10,0"
+                CornerRadius="6">
+            <TextBlock Text="{Binding AlarmStatus}"
+                       Foreground="{StaticResource TextMutedBrush}"
+                       TextTrimming="CharacterEllipsis"/>
+        </Border>
     </Grid>
 </Window>
