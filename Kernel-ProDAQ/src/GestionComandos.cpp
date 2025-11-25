@@ -331,11 +331,13 @@ float convertirParametroVelocidad(float parametro) {
 } // namespace
 
 void AjustarOffsetPorDeriva(long deltaEncoderCounts) {
-    if (deltaEncoderCounts == 0) {
+    int32_t deltaFisico = static_cast<int32_t>(deltaEncoderCounts) * encoderPolaritySign;
+
+    if (deltaFisico == 0) {
         return;
     }
 
-    int32_t correction = (deltaEncoderCounts > 0) ? -1 : 1;
+    int32_t correction = (deltaFisico > 0) ? -1 : 1;
 
     int32_t maxOffsetCounts = static_cast<int32_t>(lrintf(DAC_OFFSET_LIMIT_VOLTS * DAC_COUNTS_PER_VOLT));
     int32_t nuevoOffsetCounts = dacZeroOffsetCounts + correction;
