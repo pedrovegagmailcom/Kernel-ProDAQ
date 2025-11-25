@@ -170,7 +170,7 @@
                     <TextBlock Margin="0,2,0,0"
                                Foreground="{StaticResource TextSecondaryBrush}">
                         <Run Text="Data rate: "/>
-                        <Run Text="{Binding DataRateStatus}"/>
+                        <Run Text="{Binding DataRateStatus, Mode=OneWay}"/>
                     </TextBlock>
                 </StackPanel>
             </Grid>
