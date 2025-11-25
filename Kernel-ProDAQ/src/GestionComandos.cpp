@@ -43,6 +43,9 @@ extern LTC2602 LTCdac;
 extern DatosSensor sensorData;
 extern rtos::Mutex sensorDataMutex;
 
+static float encoderStepsPerMillimeter = 1.0f;
+static int32_t encoderPolaritySign     = 1;
+
 namespace {
 
 constexpr float VELOCIDAD_MAX_MM_MIN = 500.0f;
@@ -55,8 +58,6 @@ constexpr float DAC_COUNTS_PER_VOLT = 65535.0f / (DAC_MAX_VOLTAGE * 2.0f);
 float velocidadConsigna = 0.0f;
 float dacZeroOffsetVolts = 0.0f;
 int32_t dacZeroOffsetCounts = 0;
-float encoderStepsPerMillimeter = 1.0f;
-int32_t encoderPolaritySign = 1;
 
 struct ConfigStruct {
     float encoderGainStepsPerMillimeter;
@@ -150,18 +151,6 @@ void actualizarPolaridadEncoder(int32_t polaridad) {
     } else {
         encoderPolaritySign = -1;
     }
-}
-
-float convertirContadorAMilimetros(long valor) {
-    if (encoderStepsPerMillimeter <= 0.0f) {
-        return 0.0f;
-    }
-
-    double pasos = static_cast<double>(valor);
-    double milimetros = pasos / static_cast<double>(encoderStepsPerMillimeter);
-    milimetros *= static_cast<double>(encoderPolaritySign);
-
-    return static_cast<float>(milimetros);
 }
 
 void guardarConfiguracionFlash() {
@@ -340,6 +329,18 @@ float convertirParametroVelocidad(float parametro) {
 }
 
 } // namespace
+
+float convertirContadorAMilimetros(long valor) {
+    if (encoderStepsPerMillimeter <= 0.0f) {
+        return 0.0f;
+    }
+
+    double pasos = static_cast<double>(valor);
+    double milimetros = pasos / static_cast<double>(encoderStepsPerMillimeter);
+    milimetros *= static_cast<double>(encoderPolaritySign);
+
+    return static_cast<float>(milimetros);
+}
 
 void InicializarConfiguracion() {
     cargarConfiguracionFlash();
