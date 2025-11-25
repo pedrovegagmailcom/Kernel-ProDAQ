@@ -28,5 +28,6 @@ void handleTramoCommand(char* s2Pointer);
 void InicializarConfiguracion();
 float convertirContadorAMilimetros(long contador);
 void Parar();
+void AjustarOffsetPorDeriva(long deltaEncoderCounts);
 
 #endif /* INC_GESTIONCOMANDOS_H_ */

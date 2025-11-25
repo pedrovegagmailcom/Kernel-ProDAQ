@@ -7,6 +7,7 @@
 #include <Arduino.h>
 #include <mbed.h>
 #include <rtos.h>
+#include <cmath>
 using namespace rtos;
 #include "stm32h7xx.h"
 #include "modelo.h"
@@ -236,7 +237,7 @@ delay(10);
 
 
 void TransmisionLoop() {
-  uint32_t lastSendTime = osKernelGetTickCount();  
+  uint32_t lastSendTime = osKernelGetTickCount();
   while (true) {
     if (transmitirDatos && dataRate > 0) {
       uint32_t currentTime = osKernelGetTickCount();
@@ -257,11 +258,30 @@ void TransmisionLoop() {
 }
 
 void SensorUpdateLoop() {
+  constexpr float kDriftThresholdMm = 0.005f;
+  static long lastEncoderCount = 0;
+  static float lastExtensionMm = 0.0f;
+  static bool driftInitialized = false;
+
   while (true) {
     alarmas.comprobar();
 
     long contador = Encoder.read_counter();
     float extensionMm = convertirContadorAMilimetros(contador);
+
+    if (!driftInitialized) {
+      lastEncoderCount = contador;
+      lastExtensionMm = extensionMm;
+      driftInitialized = true;
+    }
+
+    long deltaEncoder = contador - lastEncoderCount;
+    float deltaExtensionMm = extensionMm - lastExtensionMm;
+    bool maquinaParada = (estado_maquina & (1UL << 2)) != 0;
+
+    if (maquinaParada && fabsf(deltaExtensionMm) > kDriftThresholdMm) {
+      AjustarOffsetPorDeriva(deltaEncoder);
+    }
 
     uint32_t estadoCombinado = 0;
     estadoCombinado |= static_cast<uint32_t>(alarmas.getAlarmas());
@@ -273,6 +293,9 @@ void SensorUpdateLoop() {
     sensorData.estado = estadoCombinado;
     sensorData.timestamp = millis();
     sensorDataMutex.unlock();
+
+    lastEncoderCount = contador;
+    lastExtensionMm = extensionMm;
 
     osDelay(10);
   }
