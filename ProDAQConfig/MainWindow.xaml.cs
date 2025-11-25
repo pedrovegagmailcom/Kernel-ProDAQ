@@ -26,7 +26,7 @@ namespace ProDAQConfig
         private double? _lastForceValue;
         private double? _lastEncoderValueMm;
         private DateTime _lastTelemetryTimestamp = DateTime.MinValue;
-        private DateTime _lastDataRateUpdate = DateTime.MinValue;
+        private readonly Queue<DateTime> _telemetryTimestamps = new Queue<DateTime>();
 
         private string _selectedPort;
         private string _statusMessage = "Seleccione un puerto y presione Conectar";
@@ -465,41 +465,48 @@ namespace ProDAQConfig
             CommunicationStatus = isHealthy
                 ? "Comunicación con la máquina activa"
                 : "Sin comunicación con la máquina";
+
+            if (!isHealthy)
+            {
+                DataRateStatus = "--";
+                _telemetryTimestamps.Clear();
+            }
         }
 
-        private async Task RefreshDataRateAsync(bool force = false)
+        private void UpdateDataRate()
         {
-            var now = DateTime.UtcNow;
-            if (!force && (now - _lastDataRateUpdate) < TimeSpan.FromSeconds(5))
+            if (!IsConnected)
             {
+                DataRateStatus = "--";
+                _telemetryTimestamps.Clear();
                 return;
             }
 
-            _lastDataRateUpdate = now;
+            var now = DateTime.UtcNow;
+            _telemetryTimestamps.Enqueue(now);
 
-            if (_serialPort == null || !IsConnected)
+            while (_telemetryTimestamps.Count > 0 && (now - _telemetryTimestamps.Peek()) > TimeSpan.FromSeconds(5))
+            {
+                _telemetryTimestamps.Dequeue();
+            }
+
+            if (_telemetryTimestamps.Count < 2)
             {
                 DataRateStatus = "--";
                 return;
             }
 
-            try
+            var windowStart = _telemetryTimestamps.Peek();
+            var elapsedSeconds = (now - windowStart).TotalSeconds;
+            if (elapsedSeconds <= 0)
             {
-                var response = await QueryDeviceAsync("RR");
-                if (uint.TryParse(response, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rate))
-                {
-                    DataRateStatus = $"{rate} Hz";
-                }
-                else
-                {
-                    DataRateStatus = "N/D";
-                }
+                DataRateStatus = "--";
+                return;
             }
-            catch (Exception ex)
-            {
-                DataRateStatus = "Error";
-                StatusMessage = $"No se pudo leer el data rate: {ex.Message}";
-            }
+
+            var samples = _telemetryTimestamps.Count - 1; // intervals between samples
+            var rate = samples / elapsedSeconds;
+            DataRateStatus = $"{rate:F1} Hz";
         }
 
         private async void ConnectButton_Click(object sender, RoutedEventArgs e)
@@ -527,11 +534,11 @@ namespace ProDAQConfig
                 };
                 _serialPort.Open();
                 IsConnected = true;
+                _telemetryTimestamps.Clear();
                 _serialPort.DtrEnable = true;
                 _serialPort.WriteLine("RI");
                 var response = _serialPort.ReadLine();
                 await LoadDeviceConfigurationAsync();
-                await RefreshDataRateAsync(true);
                 StatusMessage = $"Conectado a {SelectedPort} [{response}]";
                 UpdateCommunicationHealth(false);
                 _telemetryTimer.Start();
@@ -570,10 +577,10 @@ namespace ProDAQConfig
             _serialPort = null;
             IsConnected = false;
             _lastTelemetryTimestamp = DateTime.MinValue;
-            _lastDataRateUpdate = DateTime.MinValue;
             CommunicationStatus = "Desconectado";
             CommunicationHealthy = false;
             DataRateStatus = "--";
+            _telemetryTimestamps.Clear();
         }
 
         private async void ReadTelemetryButton_Click(object sender, RoutedEventArgs e)
@@ -614,7 +621,7 @@ namespace ProDAQConfig
 
             if (telemetrySucceeded)
             {
-                await RefreshDataRateAsync();
+                UpdateDataRate();
             }
         }
 
