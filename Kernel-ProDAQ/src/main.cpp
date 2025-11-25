@@ -22,6 +22,7 @@ using namespace rtos;
 
 void SerialEvent();
 void enviarDatosSensor(DatosSensor datos);
+void SensorUpdateLoop();
 
 LTC2602 LTCdac;
 //MCP23S08 mcp(PC_15);
@@ -31,6 +32,8 @@ Alarmas alarmas(IOsystem);
 
 Thread RecepcionComms;
 Thread TransmisionComms;
+Thread SensorUpdateThread;
+rtos::Mutex sensorDataMutex;
 
 DatosSensor sensorData;
 uint32_t estado_maquina;
@@ -81,6 +84,9 @@ void setup() {
 
   //TransmisionComms.start(mbed::callback(TransmisionLoop));
   //TransmisionComms.set_priority(osPriorityHigh);
+
+  SensorUpdateThread.start(mbed::callback([] { SensorUpdateLoop(); }));
+  SensorUpdateThread.set_priority(osPriorityHigh);
 
   RecepcionComms.start(mbed::callback(SerialEvent));
   RecepcionComms.set_priority(osPriorityHigh);
@@ -235,13 +241,37 @@ void TransmisionLoop() {
 
       
       if ((uint32_t)(currentTime - lastSendTime) >= interval_ms) {
-        sensorData.extension += 1;
-        sensorData.estado = estado_maquina;
-        enviarDatosSensor(sensorData);
-        lastSendTime += interval_ms; 
+        sensorDataMutex.lock();
+        DatosSensor datos = sensorData;
+        sensorDataMutex.unlock();
+
+        enviarDatosSensor(datos);
+        lastSendTime += interval_ms;
       }
     }
-    osDelay(1); 
+    osDelay(1);
+  }
+}
+
+void SensorUpdateLoop() {
+  while (true) {
+    alarmas.comprobar();
+
+    long contador = Encoder.read_counter();
+    float extensionMm = convertirContadorAMilimetros(contador);
+
+    uint32_t estadoCombinado = 0;
+    estadoCombinado |= static_cast<uint32_t>(alarmas.getAlarmas());
+    estadoCombinado |= static_cast<uint32_t>(alarmas.getStatus()) << 8;
+    estadoCombinado |= estado_maquina << 16;
+
+    sensorDataMutex.lock();
+    sensorData.extension = extensionMm;
+    sensorData.estado = estadoCombinado;
+    sensorData.timestamp = millis();
+    sensorDataMutex.unlock();
+
+    osDelay(10);
   }
 }
 

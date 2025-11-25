@@ -12,11 +12,13 @@
 #include <stdint.h>
 #include <string>
 #include <math.h>
+#include <rtos.h>
 
 #include "LS7366.h"
 #include "IO.h"
 #include "alarmas.h"
 #include "LTC2602.h"
+#include "modelo.h"
 
 #include "GestionComandos.h"
 #include "utilidades.h"
@@ -38,6 +40,8 @@ extern LS7366 Encoder;
 extern IO IOsystem;
 extern Alarmas alarmas;
 extern LTC2602 LTCdac;
+extern DatosSensor sensorData;
+extern rtos::Mutex sensorDataMutex;
 
 namespace {
 
@@ -146,6 +150,18 @@ void actualizarPolaridadEncoder(int32_t polaridad) {
     } else {
         encoderPolaritySign = -1;
     }
+}
+
+float convertirContadorAMilimetros(long valor) {
+    if (encoderStepsPerMillimeter <= 0.0f) {
+        return 0.0f;
+    }
+
+    double pasos = static_cast<double>(valor);
+    double milimetros = pasos / static_cast<double>(encoderStepsPerMillimeter);
+    milimetros *= static_cast<double>(encoderPolaritySign);
+
+    return static_cast<float>(milimetros);
 }
 
 void guardarConfiguracionFlash() {
@@ -492,25 +508,24 @@ void CommandR1(float param1, float param2) {
 }
 
 void CommandR2(float param1, float param2) {
-    long valor = Encoder.read_counter();
-
     if (encoderStepsPerMillimeter <= 0.0f) {
         Serial.println("ERR");
         return;
     }
 
-    double pasos = static_cast<double>(valor);
-    double milimetros = pasos / static_cast<double>(encoderStepsPerMillimeter);
-    milimetros *= static_cast<double>(encoderPolaritySign);
-    Serial.println(milimetros, 4);
+    sensorDataMutex.lock();
+    float extension = sensorData.extension;
+    sensorDataMutex.unlock();
+
+    Serial.println(extension, 4);
 }
 
 void CommandRS(float param1, float param2) {
-	alarmas.comprobar();
+    sensorDataMutex.lock();
+    uint8_t alarmasByte = static_cast<uint8_t>(sensorData.estado & 0xFFu);
+    uint8_t statusByte  = static_cast<uint8_t>((sensorData.estado >> 8) & 0xFFu);
+    sensorDataMutex.unlock();
 
-    volatile uint8_t alarmasByte = alarmas.getAlarmas();
-    volatile uint8_t statusByte  = alarmas.getStatus();
-    
     // Delphi pide 3 bytes; usa solo el primero (alarmas)
     Serial.write(alarmasByte);   // buf[1] en Delphi
     Serial.write(statusByte);    // buf[2] (por si otra función lo usa)
