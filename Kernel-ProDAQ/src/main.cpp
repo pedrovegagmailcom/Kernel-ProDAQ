@@ -57,6 +57,7 @@ void setup() {
   Encoder.begin();
   alarmas.inicializar();
   InicializarConfiguracion();
+  Parar();
   
   
   

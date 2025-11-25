@@ -27,5 +27,6 @@ void handleSerialLine(const char* receivedLine);
 void handleTramoCommand(char* s2Pointer);
 void InicializarConfiguracion();
 float convertirContadorAMilimetros(long contador);
+void Parar();
 
 #endif /* INC_GESTIONCOMANDOS_H_ */

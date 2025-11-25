@@ -346,6 +346,16 @@ void InicializarConfiguracion() {
     cargarConfiguracionFlash();
 }
 
+void Parar() {
+    velocidadConsigna = 0.0f;
+
+    CambiarBit(&estado_maquina, 0, 0);
+    CambiarBit(&estado_maquina, 1, 0);
+    CambiarBit(&estado_maquina, 2, 1);
+
+    actualizarSalidaVelocidad();
+}
+
 void CommandWF(float param1, float param2) {
 
         CambiarBit(&estado_maquina, 0, 1);
@@ -366,11 +376,7 @@ void CommandWR(float param1, float param2) {
 }
 
 void CommandWS(float param1, float param2) {
-        CambiarBit(&estado_maquina, 0, 0);
-        CambiarBit(&estado_maquina, 1, 0);
-        CambiarBit(&estado_maquina, 2, 1);
-
-        actualizarSalidaVelocidad();
+        Parar();
         Serial.write(13);
 }
 
@@ -420,6 +426,10 @@ void CommandRate(float param1, float param2) {
     if (param1 > 0) {
         dataRate = (uint32_t)(param1);
     }
+}
+
+void CommandRR(float param1, float param2) {
+    Serial.println(dataRate);
 }
 
 
@@ -542,7 +552,7 @@ void CommandWB(float param1, float param2) {
 }
 
 void CommandWT(float param1, float param2) {
-	Serial.println("");
+        Serial.println("");
 }
 
 
@@ -552,14 +562,15 @@ ComandoMap comandoMaps[] = {
     {"WS", CommandWS, 2},
 	{"A0", CommandAD0, 3}, // Reset ADC
 	{"A1", CommandAD1, 4}, // calibrar internaloffset
-	{"A2", CommandAD2, 5}, // calibrar sysoffset
-	{"A3", CommandAD3, 6}, // calibrar systemgain
-	{"A4", CommandAD4, 7}, // calibrar internalgain
-	{"S0", CommandS0, 8}, // iniciar envio datos
-	{"S1", CommandRate, 9}, // Modificar datarate
+        {"A2", CommandAD2, 5}, // calibrar sysoffset
+        {"A3", CommandAD3, 6}, // calibrar systemgain
+        {"A4", CommandAD4, 7}, // calibrar internalgain
+        {"S0", CommandS0, 8}, // iniciar envio datos
+        {"S1", CommandRate, 9}, // Modificar datarate
+        {"RR", CommandRR, 29}, // Leer datarate actual
     {"RI", CommandRI, 10},
-	{"RC", CommandRC, 11},
-	{"RX", CommandRX, 12}, // Hay extensometro ?
+        {"RC", CommandRC, 11},
+        {"RX", CommandRX, 12}, // Hay extensometro ?
         {"WM", CommandWM, 13}, // Modo remoto
         {"RV", CommandRV, 14}, // Velocdidad maxima ?
         {"WV", CommandWV, 15},
