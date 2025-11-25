@@ -25,17 +25,22 @@ namespace ProDAQConfig
         private double? _encoderZeroReference;
         private double? _lastForceValue;
         private double? _lastEncoderValueMm;
+        private DateTime _lastTelemetryTimestamp = DateTime.MinValue;
+        private readonly Queue<DateTime> _telemetryTimestamps = new Queue<DateTime>();
 
         private string _selectedPort;
         private string _statusMessage = "Seleccione un puerto y presione Conectar";
+        private string _communicationStatus = "Sin comunicación";
         private string _forceReading = "--";
         private string _encoderReading = "--";
         private string _alarmStatus = "--";
+        private string _dataRateStatus = "--";
         private double _offsetValue;
         private double _encoderGain = 1.0;
         private double _speedSetpoint = 100.0;
         private bool _isEncoderInverted;
         private bool _isConnected;
+        private bool _communicationHealthy;
 
         // Estado de alarmas individuales
         private bool _alarmMotorActive;
@@ -100,6 +105,19 @@ namespace ProDAQConfig
             }
         }
 
+        public string CommunicationStatus
+        {
+            get => _communicationStatus;
+            private set
+            {
+                if (_communicationStatus != value)
+                {
+                    _communicationStatus = value;
+                    OnPropertyChanged(nameof(CommunicationStatus));
+                }
+            }
+        }
+
         public string ForceReading
         {
             get => _forceReading;
@@ -139,6 +157,19 @@ namespace ProDAQConfig
             }
         }
 
+        public string DataRateStatus
+        {
+            get => _dataRateStatus;
+            private set
+            {
+                if (_dataRateStatus != value)
+                {
+                    _dataRateStatus = value;
+                    OnPropertyChanged(nameof(DataRateStatus));
+                }
+            }
+        }
+
         public double OffsetValue
         {
             get => _offsetValue;
@@ -161,6 +192,19 @@ namespace ProDAQConfig
                 {
                     _isConnected = value;
                     OnPropertyChanged(nameof(IsConnected));
+                }
+            }
+        }
+
+        public bool CommunicationHealthy
+        {
+            get => _communicationHealthy;
+            private set
+            {
+                if (_communicationHealthy != value)
+                {
+                    _communicationHealthy = value;
+                    OnPropertyChanged(nameof(CommunicationHealthy));
                 }
             }
         }
@@ -407,6 +451,64 @@ namespace ProDAQConfig
                 : "Seleccione el puerto que desea utilizar";
         }
 
+        private void UpdateCommunicationHealth(bool telemetryReceived)
+        {
+            if (telemetryReceived)
+            {
+                _lastTelemetryTimestamp = DateTime.UtcNow;
+            }
+
+            var now = DateTime.UtcNow;
+            var isHealthy = IsConnected && (now - _lastTelemetryTimestamp) < TimeSpan.FromSeconds(2);
+
+            CommunicationHealthy = isHealthy;
+            CommunicationStatus = isHealthy
+                ? "Comunicación con la máquina activa"
+                : "Sin comunicación con la máquina";
+
+            if (!isHealthy)
+            {
+                DataRateStatus = "--";
+                _telemetryTimestamps.Clear();
+            }
+        }
+
+        private void UpdateDataRate()
+        {
+            if (!IsConnected)
+            {
+                DataRateStatus = "--";
+                _telemetryTimestamps.Clear();
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+            _telemetryTimestamps.Enqueue(now);
+
+            while (_telemetryTimestamps.Count > 0 && (now - _telemetryTimestamps.Peek()) > TimeSpan.FromSeconds(5))
+            {
+                _telemetryTimestamps.Dequeue();
+            }
+
+            if (_telemetryTimestamps.Count < 2)
+            {
+                DataRateStatus = "--";
+                return;
+            }
+
+            var windowStart = _telemetryTimestamps.Peek();
+            var elapsedSeconds = (now - windowStart).TotalSeconds;
+            if (elapsedSeconds <= 0)
+            {
+                DataRateStatus = "--";
+                return;
+            }
+
+            var samples = _telemetryTimestamps.Count - 1; // intervals between samples
+            var rate = samples / elapsedSeconds;
+            DataRateStatus = $"{rate:F1} Hz";
+        }
+
         private async void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
             if (IsConnected)
@@ -432,11 +534,13 @@ namespace ProDAQConfig
                 };
                 _serialPort.Open();
                 IsConnected = true;
+                _telemetryTimestamps.Clear();
                 _serialPort.DtrEnable = true;
                 _serialPort.WriteLine("RI");
                 var response = _serialPort.ReadLine();
                 await LoadDeviceConfigurationAsync();
                 StatusMessage = $"Conectado a {SelectedPort} [{response}]";
+                UpdateCommunicationHealth(false);
                 _telemetryTimer.Start();
             }
             catch (Exception ex)
@@ -472,6 +576,11 @@ namespace ProDAQConfig
 
             _serialPort = null;
             IsConnected = false;
+            _lastTelemetryTimestamp = DateTime.MinValue;
+            CommunicationStatus = "Desconectado";
+            CommunicationHealthy = false;
+            DataRateStatus = "--";
+            _telemetryTimestamps.Clear();
         }
 
         private async void ReadTelemetryButton_Click(object sender, RoutedEventArgs e)
@@ -483,8 +592,11 @@ namespace ProDAQConfig
         {
             if (_serialPort == null || !IsConnected)
             {
+                UpdateCommunicationHealth(false);
                 return;
             }
+
+            var telemetrySucceeded = false;
 
             try
             {
@@ -497,11 +609,19 @@ namespace ProDAQConfig
                 var (alarmByte, statusByte) = await QueryAlarmBytesAsync();
                 AlarmStatus = FormatAlarmStatus(alarmByte, statusByte);
 
+                telemetrySucceeded = true;
                 StatusMessage = "Lecturas actualizadas";
             }
             catch (Exception ex)
             {
                 StatusMessage = $"Error leyendo datos: {ex.Message}";
+            }
+
+            UpdateCommunicationHealth(telemetrySucceeded);
+
+            if (telemetrySucceeded)
+            {
+                UpdateDataRate();
             }
         }
 

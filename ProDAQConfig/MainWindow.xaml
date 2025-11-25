@@ -144,11 +144,35 @@
                             Margin="4,0,0,0"/>
                 </StackPanel>
 
-                <TextBlock Grid.Column="1"
-                           Text="{Binding StatusMessage}"
-                           Foreground="{StaticResource TextSecondaryBrush}"
-                           HorizontalAlignment="Right"
-                           VerticalAlignment="Center"/>
+                <StackPanel Grid.Column="1"
+                            Orientation="Vertical"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Margin="0,0,4,0">
+                    <TextBlock Text="{Binding StatusMessage}"
+                               Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0" VerticalAlignment="Center">
+                        <Ellipse Width="10" Height="10" Margin="0,0,6,0">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="{StaticResource AlarmActiveBrush}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding CommunicationHealthy}" Value="True">
+                                            <Setter Property="Fill" Value="{StaticResource AlarmOkBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding CommunicationStatus}"
+                                   Foreground="{StaticResource TextSecondaryBrush}"/>
+                    </StackPanel>
+                    <TextBlock Margin="0,2,0,0"
+                               Foreground="{StaticResource TextSecondaryBrush}">
+                        <Run Text="Data rate: "/>
+                        <Run Text="{Binding DataRateStatus, Mode=OneWay}"/>
+                    </TextBlock>
+                </StackPanel>
             </Grid>
         </Border>
 
