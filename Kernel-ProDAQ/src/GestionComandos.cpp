@@ -137,29 +137,6 @@ void actualizarOffsetDAC(float offsetVolts) {
     dacZeroOffsetCounts = static_cast<int32_t>(lrintf(offsetVolts * DAC_COUNTS_PER_VOLT));
 }
 
-void AjustarOffsetPorDeriva(long deltaEncoderCounts) {
-    if (deltaEncoderCounts == 0) {
-        return;
-    }
-
-    int32_t correction = (deltaEncoderCounts > 0) ? -1 : 1;
-
-    int32_t maxOffsetCounts = static_cast<int32_t>(lrintf(DAC_OFFSET_LIMIT_VOLTS * DAC_COUNTS_PER_VOLT));
-    int32_t nuevoOffsetCounts = dacZeroOffsetCounts + correction;
-
-    if (nuevoOffsetCounts > maxOffsetCounts) {
-        nuevoOffsetCounts = maxOffsetCounts;
-    } else if (nuevoOffsetCounts < -maxOffsetCounts) {
-        nuevoOffsetCounts = -maxOffsetCounts;
-    }
-
-    if (nuevoOffsetCounts != dacZeroOffsetCounts) {
-        dacZeroOffsetCounts = nuevoOffsetCounts;
-        dacZeroOffsetVolts = static_cast<float>(dacZeroOffsetCounts) / DAC_COUNTS_PER_VOLT;
-        actualizarSalidaVelocidad();
-    }
-}
-
 void actualizarGananciaEncoder(float pasosPorMilimetro) {
     if (!isfinite(pasosPorMilimetro) || pasosPorMilimetro <= 0.0f) {
         return;
@@ -352,6 +329,29 @@ float convertirParametroVelocidad(float parametro) {
 }
 
 } // namespace
+
+void AjustarOffsetPorDeriva(long deltaEncoderCounts) {
+    if (deltaEncoderCounts == 0) {
+        return;
+    }
+
+    int32_t correction = (deltaEncoderCounts > 0) ? -1 : 1;
+
+    int32_t maxOffsetCounts = static_cast<int32_t>(lrintf(DAC_OFFSET_LIMIT_VOLTS * DAC_COUNTS_PER_VOLT));
+    int32_t nuevoOffsetCounts = dacZeroOffsetCounts + correction;
+
+    if (nuevoOffsetCounts > maxOffsetCounts) {
+        nuevoOffsetCounts = maxOffsetCounts;
+    } else if (nuevoOffsetCounts < -maxOffsetCounts) {
+        nuevoOffsetCounts = -maxOffsetCounts;
+    }
+
+    if (nuevoOffsetCounts != dacZeroOffsetCounts) {
+        dacZeroOffsetCounts = nuevoOffsetCounts;
+        dacZeroOffsetVolts = static_cast<float>(dacZeroOffsetCounts) / DAC_COUNTS_PER_VOLT;
+        actualizarSalidaVelocidad();
+    }
+}
 
 float convertirContadorAMilimetros(long valor) {
     if (encoderStepsPerMillimeter <= 0.0f) {
