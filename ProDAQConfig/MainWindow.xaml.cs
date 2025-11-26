@@ -43,6 +43,9 @@ namespace ProDAQConfig
         private bool _isEncoderInverted;
         private bool _isConnected;
         private bool _communicationHealthy;
+        private bool _isManualUpActive;
+        private bool _isManualDownActive;
+        private bool _isManualStopActive = true;
 
         // Estado de alarmas individuales
         private bool _alarmMotorActive;
@@ -62,6 +65,13 @@ namespace ProDAQConfig
         private bool _statusUpDownOn;
         private bool _statusStopOn;
         private bool _statusRemoteOn;
+
+        private enum ManualControlState
+        {
+            Up,
+            Down,
+            Stop
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -450,6 +460,45 @@ namespace ProDAQConfig
             }
         }
 
+        public bool IsManualUpActive
+        {
+            get => _isManualUpActive;
+            private set
+            {
+                if (_isManualUpActive != value)
+                {
+                    _isManualUpActive = value;
+                    OnPropertyChanged(nameof(IsManualUpActive));
+                }
+            }
+        }
+
+        public bool IsManualDownActive
+        {
+            get => _isManualDownActive;
+            private set
+            {
+                if (_isManualDownActive != value)
+                {
+                    _isManualDownActive = value;
+                    OnPropertyChanged(nameof(IsManualDownActive));
+                }
+            }
+        }
+
+        public bool IsManualStopActive
+        {
+            get => _isManualStopActive;
+            private set
+            {
+                if (_isManualStopActive != value)
+                {
+                    _isManualStopActive = value;
+                    OnPropertyChanged(nameof(IsManualStopActive));
+                }
+            }
+        }
+
         #endregion
 
         private async void TelemetryTimerOnTick(object sender, EventArgs e)
@@ -609,6 +658,7 @@ namespace ProDAQConfig
             CommunicationHealthy = false;
             DataRateStatus = "--";
             _telemetryTimestamps.Clear();
+            SetManualControlState(ManualControlState.Stop);
         }
 
         private async void ReadTelemetryButton_Click(object sender, RoutedEventArgs e)
@@ -916,6 +966,13 @@ namespace ProDAQConfig
             }
         }
 
+        private void SetManualControlState(ManualControlState state)
+        {
+            IsManualUpActive = state == ManualControlState.Up;
+            IsManualDownActive = state == ManualControlState.Down;
+            IsManualStopActive = state == ManualControlState.Stop;
+        }
+
         private void ZeroEncoderButton_Click(object sender, RoutedEventArgs e)
         {
             if (_lastEncoderValueMm.HasValue)
@@ -1012,12 +1069,12 @@ namespace ProDAQConfig
             await ApplySpeedSetpointAsync();
         }
 
-        private async Task ApplySpeedSetpointAsync()
+        private async Task<bool> ApplySpeedSetpointAsync(bool updateStatusMessage = true)
         {
             if (_serialPort == null || !IsConnected)
             {
                 StatusMessage = "Debe conectarse a un puerto antes de enviar la consigna de velocidad";
-                return;
+                return false;
             }
 
             var targetSpeed = SpeedSetpoint;
@@ -1025,7 +1082,7 @@ namespace ProDAQConfig
             if (targetSpeed < 0)
             {
                 StatusMessage = "La velocidad no puede ser negativa";
-                return;
+                return false;
             }
 
             try
@@ -1041,30 +1098,45 @@ namespace ProDAQConfig
                     }
                 });
 
-                StatusMessage = $"Consigna de velocidad enviada: {targetSpeed:F1} mm/min";
+                if (updateStatusMessage)
+                {
+                    StatusMessage = $"Consigna de velocidad enviada: {targetSpeed:F1} mm/min";
+                }
+                return true;
             }
             catch (Exception ex)
             {
                 StatusMessage = $"Error al enviar la consigna: {ex.Message}";
+                return false;
             }
         }
 
         private async void MoveUpButton_Click(object sender, RoutedEventArgs e)
         {
-            await SendMachineCommandAsync("WF", "Comando SUBIR enviado", "enviar comando SUBIR");
+            if (!await ApplySpeedSetpointAsync(false))
+            {
+                return;
+            }
+
+            await SendMachineCommandAsync("WF", "Comando SUBIR enviado", "enviar comando SUBIR", ManualControlState.Up);
         }
 
         private async void MoveDownButton_Click(object sender, RoutedEventArgs e)
         {
-            await SendMachineCommandAsync("WR", "Comando BAJAR enviado", "enviar comando BAJAR");
+            if (!await ApplySpeedSetpointAsync(false))
+            {
+                return;
+            }
+
+            await SendMachineCommandAsync("WR", "Comando BAJAR enviado", "enviar comando BAJAR", ManualControlState.Down);
         }
 
         private async void StopButton_Click(object sender, RoutedEventArgs e)
         {
-            await SendMachineCommandAsync("WS", "Comando PARAR enviado", "enviar comando PARAR");
+            await SendMachineCommandAsync("WS", "Comando PARAR enviado", "enviar comando PARAR", ManualControlState.Stop);
         }
 
-        private async Task SendMachineCommandAsync(string command, string successMessage, string errorAction)
+        private async Task SendMachineCommandAsync(string command, string successMessage, string errorAction, ManualControlState? manualState = null)
         {
             if (_serialPort == null || !IsConnected)
             {
@@ -1084,6 +1156,10 @@ namespace ProDAQConfig
                 });
 
                 StatusMessage = successMessage;
+                if (manualState.HasValue)
+                {
+                    SetManualControlState(manualState.Value);
+                }
             }
             catch (Exception ex)
             {
