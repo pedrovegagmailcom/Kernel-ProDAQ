@@ -80,6 +80,8 @@ namespace ProDAQConfig
             InitializeComponent();
             DataContext = this;
 
+            Loaded += MainWindow_OnLoaded;
+
             _telemetryTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromSeconds(0.01)
@@ -586,6 +588,11 @@ namespace ProDAQConfig
             DataRateStatus = $"{rate:F1} Hz";
         }
 
+        private async void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
+        {
+            await AttemptAutoConnectionAsync();
+        }
+
         private async void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
             if (IsConnected)
@@ -594,36 +601,95 @@ namespace ProDAQConfig
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(SelectedPort))
+            await ConnectToPortAsync(SelectedPort, false);
+        }
+
+        private async Task AttemptAutoConnectionAsync()
+        {
+            var portsToTry = _availablePorts.ToList();
+            if (portsToTry.Count == 0)
             {
-                StatusMessage = "Seleccione un puerto";
+                StatusMessage = "No se detectan puertos disponibles";
                 return;
             }
 
+            foreach (var port in portsToTry)
+            {
+                StatusMessage = $"Buscando electrónica en {port}...";
+                var connected = await ConnectToPortAsync(port, true);
+                if (connected)
+                {
+                    StatusMessage = $"Conexión automática establecida en {port}";
+                    return;
+                }
+            }
+
+            StatusMessage = "No se pudo conectar automáticamente a ningún puerto";
+        }
+
+        private async Task<bool> ConnectToPortAsync(string portName, bool isAuto)
+        {
+            if (string.IsNullOrWhiteSpace(portName))
+            {
+                if (!isAuto)
+                {
+                    StatusMessage = "Seleccione un puerto";
+                }
+
+                return false;
+            }
+
+            SerialPort candidatePort = null;
+
             try
             {
-                _serialPort = new SerialPort(SelectedPort, 115200, Parity.None, 8, StopBits.One)
+                candidatePort = new SerialPort(portName, 115200, Parity.None, 8, StopBits.One)
                 {
                     Encoding = Encoding.ASCII,
                     ReadTimeout = 1000,
                     WriteTimeout = 1000,
                     NewLine = "\r"
                 };
-                _serialPort.Open();
+                candidatePort.Open();
+                candidatePort.DtrEnable = true;
+                candidatePort.WriteLine("RI");
+                var response = candidatePort.ReadLine()?.Trim();
+
+                if (!string.Equals(response, "RABBIT", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException($"Respuesta inesperada de RI: {response ?? "<vacía>"}");
+                }
+
+                _serialPort = candidatePort;
+                SelectedPort = portName;
                 IsConnected = true;
                 _telemetryTimestamps.Clear();
-                _serialPort.DtrEnable = true;
-                _serialPort.WriteLine("RI");
-                var response = _serialPort.ReadLine();
+
                 await LoadDeviceConfigurationAsync();
-                StatusMessage = $"Conectado a {SelectedPort} [{response}]";
+                StatusMessage = $"Conectado a {portName} [{response}]";
                 UpdateCommunicationHealth(false);
                 _telemetryTimer.Start();
+
+                return true;
             }
             catch (Exception ex)
             {
-                StatusMessage = $"Error al conectar: {ex.Message}";
-                Disconnect();
+                if (_serialPort == null)
+                {
+                    candidatePort?.Dispose();
+                    Disconnect();
+                }
+                else
+                {
+                    Disconnect();
+                }
+
+                if (!isAuto)
+                {
+                    StatusMessage = $"Error al conectar: {ex.Message}";
+                }
+
+                return false;
             }
         }
 
