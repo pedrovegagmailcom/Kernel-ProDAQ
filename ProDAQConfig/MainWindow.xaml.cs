@@ -614,7 +614,7 @@ namespace ProDAQConfig
                 return;
             }
 
-            using var cancellation = new CancellationTokenSource();
+            var cancellation = new CancellationTokenSource();
             var autoConnectDialog = new AutoConnectDialog(cancellation)
             {
                 Owner = this
