@@ -38,6 +38,7 @@ DatosSensor sensorData;
 uint32_t estado_maquina;
 volatile uint32_t dataRate = 100;
 bool transmitirDatos = false;
+bool ad7175Inicializado = false;
 
 void setup() {
   
@@ -55,17 +56,15 @@ void setup() {
   Encoder.begin();
   alarmas.inicializar();
   InicializarConfiguracion();
-  
- 
-  
-/*
- if (AD7175_Setup() != 0) {
-        Serial.println("AD7175 Initialization Failed");
-        
-    } else {
-        Serial.println("AD7175 Initialized Successfully");
-    }
-*/
+
+
+
+  if (AD7175_Setup() != 0) {
+    Serial.println("AD7175 Initialization Failed");
+  } else {
+    ad7175Inicializado = true;
+    Serial.println("AD7175 Initialized Successfully");
+  }
 
 
   //TransmisionComms.start(mbed::callback(TransmisionLoop));
@@ -149,9 +148,20 @@ void TransmisionLoop() {
 }
 
 void SensorUpdateLoop() {
+  float ultimaFuerzaLeida = 0.0f;
+
   while (true) {
     // Comprobar alarmas de IO / seguridad / etc.
     alarmas.comprobar();
+
+    // Lectura de la celda de carga a través del AD7175.
+    if (ad7175Inicializado && AD7175_WaitForReady(5) == 0) {
+      int32_t raw = 0;
+      if (AD7175_ReadData(&raw) == 0) {
+        const float lsb_V = VREF_V / (PGA_GAIN * 8388608.0f); // 2^23 = 8,388,608
+        ultimaFuerzaLeida = raw * lsb_V;
+      }
+    }
 
     // Lectura del encoder y conversión a mm.
     long contador = Encoder.read_counter();
@@ -180,6 +190,7 @@ void SensorUpdateLoop() {
 
     // Publicar datos de sensor de forma atómica.
     sensorDataMutex.lock();
+    sensorData.fuerza = ultimaFuerzaLeida;
     sensorData.extension = extensionMm;
     sensorData.estado = estadoCombinado;
     sensorData.timestamp = millis();

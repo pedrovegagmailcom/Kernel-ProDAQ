@@ -515,7 +515,11 @@ void CommandWI(float param1, float param2) {
 }
 
 void CommandR1(float param1, float param2) {
-        Serial.println(velocidadConsigna, 2);
+        sensorDataMutex.lock();
+        float fuerza = sensorData.fuerza;
+        sensorDataMutex.unlock();
+
+        Serial.println(fuerza, 4);
 }
 
 void CommandR2(float param1, float param2) {
