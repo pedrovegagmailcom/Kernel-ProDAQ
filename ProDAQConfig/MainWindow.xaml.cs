@@ -6,6 +6,7 @@ using System.Globalization;
 using System.IO.Ports;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
@@ -613,18 +614,43 @@ namespace ProDAQConfig
                 return;
             }
 
-            foreach (var port in portsToTry)
+            using var cancellation = new CancellationTokenSource();
+            var autoConnectDialog = new AutoConnectDialog(cancellation)
             {
-                StatusMessage = $"Buscando electrónica en {port}...";
-                var connected = await ConnectToPortAsync(port, true);
-                if (connected)
-                {
-                    StatusMessage = $"Conexión automática establecida en {port}";
-                    return;
-                }
-            }
+                Owner = this
+            };
 
-            StatusMessage = "No se pudo conectar automáticamente a ningún puerto";
+            autoConnectDialog.Show();
+
+            try
+            {
+                foreach (var port in portsToTry)
+                {
+                    if (cancellation.IsCancellationRequested)
+                    {
+                        StatusMessage = "Búsqueda cancelada";
+                        return;
+                    }
+
+                    autoConnectDialog.ProgressMessage = $"Buscando electrónica en {port}...";
+                    StatusMessage = autoConnectDialog.ProgressMessage;
+
+                    var connected = await ConnectToPortAsync(port, true);
+                    if (connected)
+                    {
+                        autoConnectDialog.ProgressMessage = $"Conexión automática establecida en {port}";
+                        StatusMessage = autoConnectDialog.ProgressMessage;
+                        return;
+                    }
+                }
+
+                StatusMessage = "No se pudo conectar automáticamente a ningún puerto";
+                autoConnectDialog.ProgressMessage = StatusMessage;
+            }
+            finally
+            {
+                autoConnectDialog.Close();
+            }
         }
 
         private async Task<bool> ConnectToPortAsync(string portName, bool isAuto)
