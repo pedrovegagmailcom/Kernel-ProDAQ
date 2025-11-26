@@ -70,7 +70,7 @@ namespace ProDAQConfig
 
             _telemetryTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromSeconds(0.1)
+                Interval = TimeSpan.FromSeconds(0.01)
             };
             _telemetryTimer.Tick += TelemetryTimerOnTick;
 
