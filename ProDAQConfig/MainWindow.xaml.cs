@@ -35,7 +35,9 @@ namespace ProDAQConfig
         private string _encoderReading = "--";
         private string _alarmStatus = "--";
         private string _dataRateStatus = "--";
-        private double _offsetValue;
+        private double _coarseOffsetValue;
+        private double _fineOffsetAdjustment;
+        private bool _suppressFineOffsetAutoApply;
         private double _encoderGain = 1.0;
         private double _speedSetpoint = 100.0;
         private bool _isEncoderInverted;
@@ -170,18 +172,44 @@ namespace ProDAQConfig
             }
         }
 
-        public double OffsetValue
+        public double CoarseOffsetValue
         {
-            get => _offsetValue;
+            get => _coarseOffsetValue;
             set
             {
-                if (Math.Abs(_offsetValue - value) > double.Epsilon)
+                var clamped = Math.Max(-1.0, Math.Min(1.0, value));
+                var rounded = Math.Round(clamped, 3);
+                if (Math.Abs(_coarseOffsetValue - rounded) > double.Epsilon)
                 {
-                    _offsetValue = Math.Round(value, 3);
+                    _coarseOffsetValue = rounded;
+                    OnPropertyChanged(nameof(CoarseOffsetValue));
                     OnPropertyChanged(nameof(OffsetValue));
                 }
             }
         }
+
+        public double FineOffsetAdjustment
+        {
+            get => _fineOffsetAdjustment;
+            set
+            {
+                var clamped = Math.Max(-0.1, Math.Min(0.1, value));
+                var rounded = Math.Round(clamped, 3);
+                if (Math.Abs(_fineOffsetAdjustment - rounded) > double.Epsilon)
+                {
+                    _fineOffsetAdjustment = rounded;
+                    OnPropertyChanged(nameof(FineOffsetAdjustment));
+                    OnPropertyChanged(nameof(OffsetValue));
+
+                    if (!_suppressFineOffsetAutoApply && _serialPort != null && IsConnected)
+                    {
+                        _ = ApplyOffsetAsync();
+                    }
+                }
+            }
+        }
+
+        public double OffsetValue => Math.Round(Math.Max(-1.0, Math.Min(1.0, _coarseOffsetValue + _fineOffsetAdjustment)), 3);
 
         public bool IsConnected
         {
@@ -632,7 +660,7 @@ namespace ProDAQConfig
                 var offsetResponse = await QueryDeviceAsync("RP02");
                 if (double.TryParse(offsetResponse, NumberStyles.Float, CultureInfo.InvariantCulture, out var offset))
                 {
-                    OffsetValue = offset;
+                    ApplyOffsetFromDevice(offset);
                 }
 
                 var gainResponse = await QueryDeviceAsync("RP01");
@@ -650,6 +678,23 @@ namespace ProDAQConfig
             catch (Exception ex)
             {
                 StatusMessage = $"No se pudo leer la configuración: {ex.Message}";
+            }
+        }
+
+        private void ApplyOffsetFromDevice(double offset)
+        {
+            _suppressFineOffsetAutoApply = true;
+            try
+            {
+                var coarse = Math.Max(-1.0, Math.Min(1.0, offset));
+                CoarseOffsetValue = Math.Round(coarse, 3);
+
+                var remainder = offset - coarse;
+                FineOffsetAdjustment = Math.Round(Math.Max(-0.1, Math.Min(0.1, remainder)), 3);
+            }
+            finally
+            {
+                _suppressFineOffsetAutoApply = false;
             }
         }
 
