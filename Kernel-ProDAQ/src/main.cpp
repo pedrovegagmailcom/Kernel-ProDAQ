@@ -25,7 +25,6 @@ void enviarDatosSensor(DatosSensor datos);
 void SensorUpdateLoop();
 
 LTC2602 LTCdac;
-//MCP23S08 mcp(PC_15);
 LS7366 Encoder;
 IO IOsystem;
 Alarmas alarmas(IOsystem);
@@ -52,14 +51,12 @@ void setup() {
   Serial.println("Booting Kernel...");
   
   LTCdac.begin();
-  //mcp.begin();
   IOsystem.begin();
   Encoder.begin();
   alarmas.inicializar();
   InicializarConfiguracion();
-  Parar();
   
-  
+ 
   
 /*
  if (AD7175_Setup() != 0) {
@@ -69,19 +66,7 @@ void setup() {
         Serial.println("AD7175 Initialized Successfully");
     }
 */
-/*
-  // Rellenamos algunos datos de ejemplo
-  sensorData.fuerza = 123.45;
-  sensorData.extension = 0;
-  sensorData.timestamp = millis();
-  sensorData.estado = 0x01;
-  sensorData.statusReg = 0x02;
-  sensorData.modeReg = 0x03;
-  sensorData.ch0Reg = 0x04;
-  sensorData.ch0GainReg = 0x05;
-  sensorData.maxForce = 500.0;
-  sensorData.checksum = 0xFFFF;
-*/
+
 
   //TransmisionComms.start(mbed::callback(TransmisionLoop));
   //TransmisionComms.set_priority(osPriorityHigh);
@@ -95,24 +80,7 @@ void setup() {
   
 }
 
-/*
 
-void loop1() {
-
-
-    digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
-    delay(500); 
-  
-    byte inputs = mcp.readRegister(0x09);
-    Serial.println(inputs, BIN);  // Mostrar en binario
-    Serial.println("loop()");
-
-    digitalWrite(LED_BUILTIN, LOW);   // turn the LED off by making the voltage LOW
-    delay(500);    
-    
-}
-
-*/
 constexpr float   VREF_V = 2.500f; // Voltaje de referencia (V)
 constexpr int     PGA_GAIN = 1;    // Ganancia del PGA usada en SETUP0
 
@@ -139,95 +107,19 @@ void loop_analog() {
   delay(500);
 }
 
-/*
-void loop() {
 
 
-    digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
-    delay(500); 
-  
-    unsigned long  valor = Encoder.read_counter();
-    Serial.println(valor);  // Mostrar en binario
-    
-
-    digitalWrite(LED_BUILTIN, LOW);   // turn the LED off by making the voltage LOW
-    delay(1500);    
-    
-}
-
-
-
-
-
-*/
-
-/*
-
-void loop3() {
-
-
-    digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
-    
-  
-    LTCdac.setOutput(0, 0);
-    LTCdac.setOutput(1, 0);
-
-    digitalWrite(LED_BUILTIN, LOW);   // turn the LED off by making the voltage LOW
-    delay(2000);   
-    
-    LTCdac.setOutput(0, 32766);
-    LTCdac.setOutput(1, 32766); 
-
-    delay(2000);   
-    
-    LTCdac.setOutput(0, 65535);
-    LTCdac.setOutput(1, 65535); 
-    delay(2000);
-    
-}
-
-*/
-// Loop para probar salidas analogicas  
-
-void loop_org() {
-  // Ciclo de subida en 1 segundo (0 -> 65535)
-  // Usamos 101 pasos: de i=0 a i=100
-  for (int i = 0; i <= 100; i++) {
-    // Escalamos 'i' a un rango de 0 a ~65500
-    uint16_t value = i * 655; // 655 aprox (65535 / 100)
-    
-    // Ajustamos ambos canales con el mismo valor
-    LTCdac.setOutput(0, value);
-    LTCdac.setOutput(1, value);
-    
-    // Retardo de 10 ms para que 101 pasos tomen ~1 segundo
-    delay(100);
-    Serial.println(value);
- 
-  }
-
-  // Ciclo de bajada en 1 segundo (65535 -> 0)
-  for (int i = 100; i >= 0; i--) {
-    uint16_t value = i * 655;
-    LTCdac.setOutput(0, value);
-    LTCdac.setOutput(1, value);
-    delay(100);
-    Serial.println(value);
-  }
-}
 
 
 void loop() {
-  /*
+/*
 digitalWrite(LED_BUILTIN, HIGH);
-//LTCdac.setOutput(0, 0);
-//LTCdac.setOutput(1, 0);
+
 
 delay(10);
 
 digitalWrite(LED_BUILTIN, LOW);
-//LTCdac.setOutput(0, 65535);
-//LTCdac.setOutput(1, 65535);
+
 
 delay(10);
 */
@@ -258,25 +150,46 @@ void TransmisionLoop() {
 
 void SensorUpdateLoop() {
   while (true) {
+    // Comprobar alarmas de IO / seguridad / etc.
     alarmas.comprobar();
 
+    // Lectura del encoder y conversión a mm.
     long contador = Encoder.read_counter();
     float extensionMm = convertirContadorAMilimetros(contador);
 
+    // --- NUEVO: cálculo de estado-parado y llamada al vigilante de offset ---
+
+    uint32_t estado = estado_maquina;
+
+    bool stop    = (estado & (1UL << 2)) != 0;
+    bool forward = (estado & (1UL << 0)) != 0;
+    bool reverse = (estado & (1UL << 1)) != 0;
+
+    // Máquina parada = en STOP y sin mandos de avance ni retroceso.
+    bool maquinaParada = stop && !forward && !reverse;
+
+
+
+    // --- FIN NUEVO ---
+
+    // Empaquetar estado para el canal de comunicación.
     uint32_t estadoCombinado = 0;
     estadoCombinado |= static_cast<uint32_t>(alarmas.getAlarmas());
     estadoCombinado |= static_cast<uint32_t>(alarmas.getStatus()) << 8;
     estadoCombinado |= estado_maquina << 16;
 
+    // Publicar datos de sensor de forma atómica.
     sensorDataMutex.lock();
     sensorData.extension = extensionMm;
     sensorData.estado = estadoCombinado;
     sensorData.timestamp = millis();
     sensorDataMutex.unlock();
 
+    // Periodo de muestreo del lazo de sensores (~10 ms).
     osDelay(10);
   }
 }
+
 
 
 #define STX 0x02
