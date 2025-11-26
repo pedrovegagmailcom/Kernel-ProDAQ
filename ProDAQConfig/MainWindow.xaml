@@ -573,26 +573,7 @@
                 </StackPanel>
             </Border>
 
-            <!-- VELOCIDAD ENSAYO -->
-            <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource CardBorderStyle}">
-                <StackPanel>
-                    <TextBlock Text="Velocidad de ensayo"
-                               Style="{StaticResource SectionTitleTextStyle}"/>
-
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="Velocidad (mm/min):"
-                                   VerticalAlignment="Center"
-                                   Foreground="{StaticResource TextSecondaryBrush}"
-                                   Margin="0,0,6,0"/>
-                        <TextBox Width="80"
-                                 Text="{Binding SpeedSetpoint, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                 Margin="0,0,6,0"/>
-                        <Button Content="Aplicar"
-                                Style="{StaticResource PrimaryButtonStyle}"
-                                Click="ApplySpeedSetpointButton_Click"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
+         
 
             <!-- AJUSTE OFFSET ANALÓGICO -->
             <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource CardBorderStyle}">
