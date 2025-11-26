@@ -247,8 +247,7 @@ int32_t AD7175_Setup(void) {
     // Initialize SPI and CS Pin
     pinMode(AD7175_CS_PIN, OUTPUT);
     digitalWrite(AD7175_CS_PIN, HIGH);
-    SPI.begin();
-Serial.print("AD7175 0");
+    
     // Reset the device
     
     AD717X_Reset();
@@ -257,51 +256,43 @@ Serial.print("AD7175 0");
     if (AD7175_ReadRegister(&AD7175_regs[ID_st_reg]) != 0)
         return -1;
 
-
-
-Serial.print("AD7175 ID : ");
-Serial.println(AD7175_regs[ID_st_reg].value);
-
-Serial.println("AD7175 1");
-
     // Configure ADC Mode Register
     AD7175_regs[ADC_Mode_Register].value |= AD717X_ADCMODE_SING_CYC;
     if (AD7175_WriteRegister(AD7175_regs[ADC_Mode_Register]) != 0)
         return -1;
 
-Serial.println("AD7175 2");
+
 
     // Configure Interface Mode Register
     AD7175_regs[Interface_Mode_Register].value &= ~(/*CRC_EN|*/ AD717X_IFMODE_REG_XOR_EN);
     AD7175_WriteRegister(AD7175_regs[Interface_Mode_Register]);
     AD7175_st.useCRC = 0; // deshabilitar comprobación
 
-Serial.println("AD7175 3");
+
 
     // Configure GPIO
     AD7175_regs[IOCon_Register].value |= AD717X_GPIOCON_REG_ERR_EN(2);
     if (AD7175_WriteRegister(AD7175_regs[IOCon_Register]) != 0)
         return -1;
 
-Serial.println("AD7175 4");
+
 
     // Initialize Setup Configuration Registers
     if (AD7175_WriteRegister(AD7175_regs[Setup_Config_1]) != 0)
         return -1;
 
-Serial.println("AD7175 5");
 
     // Initialize Filter Configuration Registers
     if (AD7175_WriteRegister(AD7175_regs[Filter_Config_1]) != 0)
         return -1;
 
-Serial.println("AD7175 6");
+
 
     // Initialize Channel Map Registers
     if (AD7175_WriteRegister(AD7175_regs[CH_Map_1]) != 0)
         return -1;
 
-Serial.println("AD7175 7");
+
 
     // Perform Calibration
     uint64_t offset_sum = 0;
