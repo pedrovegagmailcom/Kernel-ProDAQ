@@ -573,20 +573,46 @@
                                Foreground="{StaticResource TextSecondaryBrush}"/>
 
                     <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                        <Slider Width="300"
-                                Minimum="-5"
-                                Maximum="5"
-                                Value="{Binding OffsetValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                TickFrequency="0.1"
-                                IsSnapToTickEnabled="True"/>
-                        <TextBlock Text="{Binding OffsetValue, StringFormat=F3}"
-                                   Foreground="{StaticResource TextPrimaryBrush}"
-                                   Margin="8,0,0,0"
-                                   VerticalAlignment="Center"/>
-                        <Button Content="Aplicar"
-                                Style="{StaticResource PrimaryButtonStyle}"
-                                Margin="8,0,0,0"
-                                Click="ApplyOffsetButton_Click"/>
+                        <StackPanel>
+                            <TextBlock Text="Control basto"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <Slider Width="300"
+                                    Minimum="-1"
+                                    Maximum="1"
+                                    Value="{Binding CoarseOffsetValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    TickFrequency="0.05"
+                                    IsSnapToTickEnabled="True"/>
+                            <TextBlock Text="Control fino (-0,1 a 0,1 V)"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <Slider Width="300"
+                                    Minimum="-0.1"
+                                    Maximum="0.1"
+                                    Value="{Binding FineOffsetAdjustment, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                    TickFrequency="0.005"
+                                    IsSnapToTickEnabled="True"/>
+                        </StackPanel>
+
+                        <StackPanel Margin="8,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Valor basto"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding CoarseOffsetValue, StringFormat=F3}"
+                                       Style="{StaticResource BigValueTextStyle}"/>
+                            <TextBlock Text="Ajuste fino"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding FineOffsetAdjustment, StringFormat=F3}"
+                                       Style="{StaticResource BigValueTextStyle}"/>
+                        </StackPanel>
+
+                        <StackPanel Margin="12,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="Offset total"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <TextBlock Text="{Binding OffsetValue, StringFormat=F3}"
+                                       Style="{StaticResource BigValueTextStyle}"/>
+                            <Button Content="Aplicar"
+                                    Style="{StaticResource PrimaryButtonStyle}"
+                                    Margin="0,6,0,0"
+                                    Click="ApplyOffsetButton_Click"/>
+                        </StackPanel>
                     </StackPanel>
                 </StackPanel>
             </Border>
