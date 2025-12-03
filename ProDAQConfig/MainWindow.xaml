@@ -216,6 +216,7 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
                         <!-- Fuerza -->
@@ -234,8 +235,22 @@
                                     Click="ZeroForceButton_Click"/>
                         </StackPanel>
 
-                        <!-- Posición -->
+                        <!-- Voltaje -->
                         <StackPanel Grid.Column="1">
+                            <TextBlock Text="Voltaje"
+                                       Foreground="{StaticResource TextSecondaryBrush}"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                <TextBlock Text="{Binding VoltageReading}"
+                                           Style="{StaticResource BigValueTextStyle}"/>
+                                <TextBlock Text=" V"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="16"
+                                           Margin="4,6,0,0"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Posición -->
+                        <StackPanel Grid.Column="2">
                             <TextBlock Text="Posición (R2)"
                                        Foreground="{StaticResource TextSecondaryBrush}"/>
                             <StackPanel Orientation="Horizontal" Margin="0,2,0,0">

@@ -33,6 +33,7 @@ namespace ProDAQConfig
         private string _statusMessage = "Seleccione un puerto y presione Conectar";
         private string _communicationStatus = "Sin comunicación";
         private string _forceReading = "--";
+        private string _voltageReading = "--";
         private string _encoderReading = "--";
         private string _alarmStatus = "--";
         private string _dataRateStatus = "--";
@@ -142,6 +143,19 @@ namespace ProDAQConfig
                 {
                     _forceReading = value;
                     OnPropertyChanged(nameof(ForceReading));
+                }
+            }
+        }
+
+        public string VoltageReading
+        {
+            get => _voltageReading;
+            set
+            {
+                if (_voltageReading != value)
+                {
+                    _voltageReading = value;
+                    OnPropertyChanged(nameof(VoltageReading));
                 }
             }
         }
@@ -773,6 +787,9 @@ namespace ProDAQConfig
                 var forceResponse = await QueryDeviceAsync("R1");
                 UpdateForceReading(forceResponse);
 
+                var voltageResponse = await QueryDeviceAsync("R3");
+                UpdateVoltageReading(voltageResponse);
+
                 var encoderResponse = await QueryDeviceAsync("R2");
                 ParseEncoderReading(encoderResponse);
 
@@ -1041,6 +1058,18 @@ namespace ProDAQConfig
             {
                 _lastForceValue = null;
                 ForceReading = forceResponse;
+            }
+        }
+
+        private void UpdateVoltageReading(string voltageResponse)
+        {
+            if (TryParseDouble(voltageResponse, out var voltage))
+            {
+                VoltageReading = $"{voltage:F3}";
+            }
+            else
+            {
+                VoltageReading = voltageResponse;
             }
         }
 
