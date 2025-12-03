@@ -535,6 +535,14 @@ void CommandR2(float param1, float param2) {
     Serial.println(extension, 4);
 }
 
+void CommandR3(float param1, float param2) {
+    sensorDataMutex.lock();
+    float voltaje = sensorData.voltaje;
+    sensorDataMutex.unlock();
+
+    Serial.println(voltaje, 4);
+}
+
 void CommandRS(float param1, float param2) {
     sensorDataMutex.lock();
     uint8_t alarmasByte = static_cast<uint8_t>(sensorData.estado & 0xFFu);
@@ -587,6 +595,7 @@ ComandoMap comandoMaps[] = {
         {"RP", CommandRP, 22},
         {"R1", CommandR1, 23},
         {"R2", CommandR2, 24},
+        {"R3", CommandR3, 30},
         {"RS", CommandRS, 25},
         {"RH", CommandRH, 26}, // Ensayo en curso ?
         {"WB", CommandRS, 27}, // Alarma baja velo
