@@ -1073,17 +1073,38 @@ namespace ProDAQConfig
             }
         }
 
-        private void ZeroForceButton_Click(object sender, RoutedEventArgs e)
+        private async void ZeroForceButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_lastForceValue.HasValue)
+            if (_serialPort == null || !IsConnected)
             {
-                _forceZeroReference = _lastForceValue.Value;
-                ForceReading = $"{0.0:F3}";
-                StatusMessage = "Cero de fuerza aplicado";
+                StatusMessage = "Debe conectarse a un puerto antes de poner a cero la fuerza";
+                return;
             }
-            else
+
+            if (!_lastForceValue.HasValue)
             {
                 StatusMessage = "No hay lectura de fuerza válida para poner a cero";
+                return;
+            }
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    lock (_serialLock)
+                    {
+                        _serialPort.WriteLine("WZ");
+                        _serialPort.ReadLine();
+                    }
+                });
+
+                _forceZeroReference = null;
+                ForceReading = $"{0.0:F3}";
+                StatusMessage = "Cero de fuerza solicitado al kernel";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error al solicitar cero de fuerza: {ex.Message}";
             }
         }
 
