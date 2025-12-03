@@ -162,7 +162,6 @@ void SensorUpdateLoop() {
     sensorData.fuerza    = ultimaFuerzaLeida;
     sensorData.voltaje  = AD7175_Voltage(raw);
     sensorData.extension = extensionMm;
-    sensorData.extension = raw;
     sensorData.estado    = estadoCombinado;
     sensorData.timestamp = millis();
     sensorDataMutex.unlock();

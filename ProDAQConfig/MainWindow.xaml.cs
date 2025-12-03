@@ -1065,7 +1065,7 @@ namespace ProDAQConfig
         {
             if (TryParseDouble(voltageResponse, out var voltage))
             {
-                VoltageReading = $"{voltage:F3}";
+                VoltageReading = $"{voltage:F4}";
             }
             else
             {

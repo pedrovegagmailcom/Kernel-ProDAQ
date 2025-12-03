@@ -472,12 +472,7 @@ void CommandWO(float param1, float param2) {
 
 void CommandWZ(float param1, float param2) {
     int32_t result = AD7175_SystemZeroScaleCalibrate();
-
-    if (result == 0) {
-        Serial.println("OK");
-    } else {
-        Serial.println("ERR");
-    }
+    Serial.println("");
 }
 
 void CommandROffset(float param1, float param2) {
