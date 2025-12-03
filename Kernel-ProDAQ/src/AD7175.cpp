@@ -12,16 +12,18 @@ st_reg AD7175_regs[] =
     /*0x04*/ {AD717X_DATA_REG       , 0x000000, 3}, // Data_Register
     /*0x06*/ {AD717X_GPIOCON_REG    , 0x0400  , 2}, // IOCon_Register
     /*0x07*/ {AD717X_ID_REG         , 0x0000  , 2}, // ID_st_reg
-    /*0x10*/ {AD717X_CHMAP0_REG     , 0x8001  , 2}, // CH_Map_1
+    /*0x10*/ {AD717X_CHMAP0_REG     , 0x8043  , 2}, // CH_Map_1
     /*0x11*/ {AD717X_CHMAP1_REG     , 0x0000  , 2}, // CH_Map_2
     /*0x12*/ {AD717X_CHMAP2_REG     , 0x0000  , 2}, // CH_Map_3
     /*0x13*/ {AD717X_CHMAP3_REG     , 0x0000  , 2}, // CH_Map_4
-    /*0x20*/ {AD717X_SETUPCON0_REG  , 0x1320  , 2}, // Setup_Config_1
+    /*0x20*/ {AD717X_SETUPCON0_REG  , 0x1300  , 2}, // Setup_Config_1 
     /*0x21*/ {AD717X_SETUPCON1_REG  , 0x0000  , 2}, // Setup_Config_2
     /*0x22*/ {AD717X_SETUPCON2_REG  , 0x0000  , 2}, // Setup_Config_3
     /*0x23*/ {AD717X_SETUPCON3_REG  , 0x0000  , 2}, // Setup_Config_4
-    /*0x28*/ {AD717X_FILTCON0_REG   , 0x0007  , 2}, // Filter_Config_1
-    /*0x29*/ {AD717X_FILTCON1_REG   , 0x0007  , 2}, // Filter_Config_2
+//  /*0x28*/ {AD717X_FILTCON0_REG   , 0x006d  , 2}, // Filter_Config_1 200sps Sinc3
+  /*0x28*/ {AD717X_FILTCON0_REG   , 0x000d  , 2}, // Filter_Config_1 200sps Sinc5+Sinc1
+//    /*0x28*/ {AD717X_FILTCON0_REG   , 0x000e  , 2}, // Filter_Config_1 100sps Sinc5+Sinc1
+    /*0x29*/ {AD717X_FILTCON1_REG   , 0x001F  , 2}, // Filter_Config_2
     /*0x2A*/ {AD717X_FILTCON2_REG   , 0x0007  , 2}, // Filter_Config_3
     /*0x2B*/ {AD717X_FILTCON3_REG   , 0x0007  , 2}, // Filter_Config_4
     /*0x30*/ {AD717X_OFFSET0_REG    , 0x800000, 3}, // Offset_1
@@ -144,7 +146,55 @@ int32_t AD7175_GetState(uint8_t* st) {
     return 0;
 }
 
+
+
+int32_t filtroRC(int32_t present_reading) {
+    static int32_t last_output = 0;  // Inicializa en 0 la primera vez
+    int32_t var1;
+    int32_t x = 5;  // Constante de tiempo del filtro
+
+    var1 = (x * last_output + present_reading);
+    last_output = var1 / (x + 1);
+
+    return last_output;
+}
+
 int32_t AD7175_ReadData(int32_t* pData) {
+    if (AD7175_ReadRegister(&AD7175_regs[Data_Register]) != 0)
+        return -1;
+
+    
+    uint32_t code24 = AD7175_regs[Data_Register].value & 0xFFFFFF;
+
+    // Offset-binary (bipolar) -> signed [-2^23 .. +2^23-1]
+    int32_t signed24 = (int32_t)code24 - 0x800000;
+
+
+    signed24 = filtroRC(signed24);
+    *pData = signed24;
+    return 0;
+}
+
+#define VREF_VALUE_F (3.3f)
+float AD7175_Voltage(int32_t adc_code) {
+  
+    float voltage;
+
+    // Constante para el rango de códigos (2^(N-1) para bipolar)
+    // 2^23 = 8388608
+    const float mid_code_f = (float)(1 << (24 - 1));
+    // Rango total de voltaje es Vref * (2^(N-1))
+
+    // Fórmula: Voltaje = (Código ADC / (2^(N-1))) * (Vref / 2) 
+    // O simplemente: Voltaje = (Código ADC * Vref) / 2^N
+
+    // Se puede simplificar a:
+    voltage = ((float)adc_code * VREF_VALUE_F) / (float)(1 << (24 - 1));
+
+    return voltage;
+}
+
+int32_t AD7175_ReadData_org(int32_t* pData) {
     if (AD7175_ReadRegister(&AD7175_regs[Data_Register]) != 0)
         return -1;
     int32_t v = AD7175_regs[Data_Register].value & 0xFFFFFF;
@@ -312,3 +362,35 @@ int32_t AD7175_Setup(void) {
 
     return 0;
 }
+
+// -----------------------------------------------------------------------------
+// Calibración de sistema a cero (SYSTEM ZERO-SCALE CALIBRATION)
+// -----------------------------------------------------------------------------
+int32_t AD7175_SystemZeroScaleCalibrate(void)
+{
+    // IMPORTANTE:
+    // - Debe estar activo solo el canal que quieres calibrar (ya es tu caso).
+    // - La célula debe estar SIN CARGA cuando llames a esta función.
+
+    // 1) Lanzar calibración de offset de sistema
+    if (AD717X_Calibration(ADC_CAL_SYS_OFFSET) != 0)
+        return -1;
+
+    // 2) Esperar a que termine la calibración.
+    //    Según la hoja de datos, cuando termina la calibración
+    //    el bit RDY del STATUS pasa de 1 -> 0.
+    if (AD7175_WaitForReady(1000) != 0)   // timeout 1000 ms
+        return -1;
+
+    // 3) Leer y mantener en sombra el registro de offset del setup actual
+    //    (OFFSET_1 en tu caso, porque usas SETUP0 / Offset_1).
+    if (AD7175_ReadRegister(&AD7175_regs[Offset_1]) != 0)
+        return -1;
+
+    // 4) Volver a modo de conversión continua
+    if (AD717X_Resume(ADC_WORK_MODE_CONTINUOUS) != 0)
+        return -1;
+
+    return 0;
+}
+

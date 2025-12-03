@@ -23,6 +23,7 @@ using namespace rtos;
 void SerialEvent();
 void enviarDatosSensor(DatosSensor datos);
 void SensorUpdateLoop();
+int32_t TaraCelula();
 
 LTC2602 LTCdac;
 LS7366 Encoder;
@@ -66,6 +67,7 @@ void setup() {
     Serial.println("AD7175 Initialized Successfully");
   }
 
+  //TaraCelula();
 
   //TransmisionComms.start(mbed::callback(TransmisionLoop));
   //TransmisionComms.set_priority(osPriorityHigh);
@@ -80,49 +82,10 @@ void setup() {
 }
 
 
-constexpr float   VREF_V = 2.500f; // Voltaje de referencia (V)
-constexpr int     PGA_GAIN = 1;    // Ganancia del PGA usada en SETUP0
-
-void loop_analog() {
-  if (AD7175_WaitForReady(200)) {
-    int32_t raw = 0;
-    if (AD7175_ReadData(&raw)) {
-      // raw es 24 bits con sign-extend a 32 (bipolar, 2^23 a FS)
-      // LSB (V) = Vref / (Gain * 2^23)
-      const float lsb_V = VREF_V / (PGA_GAIN * 8388608.0f); // 2^23 = 8,388,608
-      float volts = raw * lsb_V;
-
-      Serial.print("RAW= ");
-      Serial.print(raw);
-      Serial.print("\tV= ");
-      Serial.println(volts, 6);
-    } else {
-      Serial.println("Error de lectura de DATA");
-    }
-  } else {
-    Serial.println("Timeout esperando dato listo");
-  }
-
-  delay(500);
-}
-
-
-
 
 
 void loop() {
-/*
-digitalWrite(LED_BUILTIN, HIGH);
 
-
-delay(10);
-
-digitalWrite(LED_BUILTIN, LOW);
-
-
-delay(10);
-*/
- 
 }
 
 
@@ -147,8 +110,24 @@ void TransmisionLoop() {
   }
 }
 
+
+
+
+constexpr float   VREF_V            = 3.300f; // ya lo tienes definido
+constexpr int     PGA_GAIN          = 1;      // el que uses en el SETUP0
+constexpr float   F_FULLSCALE_N     = 50.0f;  // tu célula es de 50 N
+constexpr float   CELL_SENS_MV_PER_V= 2.0f;   // EJEMPLO: 2 mV/V (cámbialo)
+constexpr float   EXCITATION_V      = 10.0f;   // tensión que le das al puente
+
+constexpr float RAW_ZERO          = 0;//8.327;                   // lectura sin carga
+constexpr float SCALE_N_PER_COUNT = 0.000007906f;
+
+float g_offsetVolt = 0.0f;
+
+
 void SensorUpdateLoop() {
   float ultimaFuerzaLeida = 0.0f;
+  int32_t raw = 0;
 
   while (true) {
     // Comprobar alarmas de IO / seguridad / etc.
@@ -156,32 +135,22 @@ void SensorUpdateLoop() {
 
     // Lectura de la celda de carga a través del AD7175.
     if (ad7175Inicializado && AD7175_WaitForReady(5) == 0) {
-      int32_t raw = 0;
+      
       if (AD7175_ReadData(&raw) == 0) {
-        const float lsb_V = VREF_V / (PGA_GAIN * 8388608.0f); // 2^23 = 8,388,608
-        ultimaFuerzaLeida = raw * lsb_V;
+
+        // raw ya es 24 bits con signo extendido (bipolar)
+        // Fuerza en Newtons usando la calibración 0 kg / 1 kg
+        float fuerzaN = (raw) * SCALE_N_PER_COUNT;
+
+        ultimaFuerzaLeida = (fuerzaN - RAW_ZERO); // Ajusta este offset según tu tara
       }
     }
 
     // Lectura del encoder y conversión a mm.
-    long contador = Encoder.read_counter();
+    long  contador    = Encoder.read_counter();
     float extensionMm = convertirContadorAMilimetros(contador);
 
-    // --- NUEVO: cálculo de estado-parado y llamada al vigilante de offset ---
-
-    uint32_t estado = estado_maquina;
-
-    bool stop    = (estado & (1UL << 2)) != 0;
-    bool forward = (estado & (1UL << 0)) != 0;
-    bool reverse = (estado & (1UL << 1)) != 0;
-
-    // Máquina parada = en STOP y sin mandos de avance ni retroceso.
-    bool maquinaParada = stop && !forward && !reverse;
-
-
-
-    // --- FIN NUEVO ---
-
+    
     // Empaquetar estado para el canal de comunicación.
     uint32_t estadoCombinado = 0;
     estadoCombinado |= static_cast<uint32_t>(alarmas.getAlarmas());
@@ -190,16 +159,18 @@ void SensorUpdateLoop() {
 
     // Publicar datos de sensor de forma atómica.
     sensorDataMutex.lock();
-    sensorData.fuerza = ultimaFuerzaLeida;
+    sensorData.fuerza    = ultimaFuerzaLeida;//AD7175_Voltage(raw);  // AHORA sí en Newtons
     sensorData.extension = extensionMm;
-    sensorData.estado = estadoCombinado;
+    sensorData.extension = raw;
+    sensorData.estado    = estadoCombinado;
     sensorData.timestamp = millis();
     sensorDataMutex.unlock();
 
     // Periodo de muestreo del lazo de sensores (~10 ms).
-    osDelay(10);
+    osDelay(0);
   }
 }
+
 
 
 
@@ -264,6 +235,19 @@ void SerialEvent() {
     }
 }
 
+
+int32_t TaraCelula()
+{
+    // Asegúrate de que no haya peso en la célula antes de llamar.
+    if (!ad7175Inicializado) {
+        return -1;
+    }
+
+    // Opcional: podrías comprobar aquí que la máquina está parada
+    // usando las mismas señales que en SensorUpdateLoop.
+
+    return AD7175_SystemZeroScaleCalibrate();
+}
 
 
 /*
