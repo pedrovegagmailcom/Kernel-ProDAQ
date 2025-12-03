@@ -52,11 +52,11 @@ private:
     // ====== AQUÍ FIJAS PARA SIEMPRE EL MAPEO A LAS ENTRADAS FÍSICAS ======
     // Pon aquí el número de bit de readInputs() que corresponde a cada señal.
     // Ejemplo (igual que Rabbit): FCS->E0, FCI->E1, SETA->E2, MOTOR->E3.
-    static constexpr int INPUT_FCS_BIT    = 0;
-    static constexpr int INPUT_FCI_BIT    = 1;
-    static constexpr int INPUT_SETA_BIT   = 2;
-    static constexpr int INPUT_MOTOR_BIT  = 3;
-    static constexpr int INPUT_COMP_BIT   = 4;
+    static constexpr int INPUT_FCS_BIT    = 4;
+    static constexpr int INPUT_FCI_BIT    = 2;
+    static constexpr int INPUT_SETA_BIT   = 0;
+    static constexpr int INPUT_MOTOR_BIT  = 1;
+    static constexpr int INPUT_COMP_BIT   = 3;
     static constexpr int INPUT_TRAC_BIT   = 5;
     static constexpr int INPUT_CERO_BIT   = 6;
     static constexpr int INPUT_CELULA_BIT = 7;

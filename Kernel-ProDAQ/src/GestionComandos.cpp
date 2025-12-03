@@ -12,15 +12,19 @@
 #include <stdint.h>
 #include <string>
 #include <math.h>
+#include <rtos.h>
 
 #include "LS7366.h"
 #include "IO.h"
 #include "alarmas.h"
 #include "LTC2602.h"
+#include "modelo.h"
+#include "AD7175.h"
 
 #include "GestionComandos.h"
 #include "utilidades.h"
 #include "tramos.h"
+#include "almacenamiento.h"
 
 typedef enum {
     PROTOCOLO_NUEVO,
@@ -37,6 +41,11 @@ extern LS7366 Encoder;
 extern IO IOsystem;
 extern Alarmas alarmas;
 extern LTC2602 LTCdac;
+extern DatosSensor sensorData;
+extern rtos::Mutex sensorDataMutex;
+
+static float encoderStepsPerMillimeter = 1.0f;
+static int32_t encoderPolaritySign     = 1;
 
 namespace {
 
@@ -51,16 +60,35 @@ float velocidadConsigna = 0.0f;
 float dacZeroOffsetVolts = 0.0f;
 int32_t dacZeroOffsetCounts = 0;
 
+struct ConfigStruct {
+    float encoderGainStepsPerMillimeter;
+    float dacOffsetVolts;
+    int32_t encoderPolaritySign;
+};
+
+enum class ConfigParameter : uint8_t {
+    EncoderGain   = 1,
+    DacOffset     = 2,
+    EncoderPolarity = 3,
+};
+
+constexpr uint32_t CONFIG_MAGIC = 0x43464732; // "CFG2"
+constexpr uint32_t CONFIG_BASE_ADDR = 0;
+
+ConfigStruct configData{1.0f, 0.0f, 1};
+ConfigStorage configStorage(sizeof(ConfigStruct), CONFIG_MAGIC, CONFIG_BASE_ADDR);
+
 float normalizarVelocidad(float valor) {
     if (!isfinite(valor)) {
         return 0.0f;
     }
-    if (valor < 0.0f) {
-        valor = 0.0f;
-    }
+
     if (valor > VELOCIDAD_MAX_MM_MIN) {
         valor = VELOCIDAD_MAX_MM_MIN;
+    } else if (valor < -VELOCIDAD_MAX_MM_MIN) {
+        valor = -VELOCIDAD_MAX_MM_MIN;
     }
+
     return valor / VELOCIDAD_MAX_MM_MIN;
 }
 
@@ -73,19 +101,16 @@ void actualizarSalidaVelocidad() {
 
     if (stop || (!forward && !reverse)) {
         velocidad = 0.0f;
+    } else if (reverse && !forward && velocidad > 0.0f) {
+        velocidad = -velocidad;
+    } else if (forward && !reverse && velocidad < 0.0f) {
+        velocidad = -velocidad;
     }
 
     float fraccion = normalizarVelocidad(velocidad);
     int32_t delta = (int32_t)lrintf(fraccion * 32767.0f);
 
-    int32_t codigo = DAC_MID_CODE;
-    if (forward && !reverse) {
-        codigo += delta;
-    } else if (reverse && !forward) {
-        codigo -= delta;
-    } else {
-        codigo = DAC_MID_CODE;
-    }
+    int32_t codigo = DAC_MID_CODE + delta;
 
     codigo += dacZeroOffsetCounts;
 
@@ -113,6 +138,172 @@ void actualizarOffsetDAC(float offsetVolts) {
     dacZeroOffsetCounts = static_cast<int32_t>(lrintf(offsetVolts * DAC_COUNTS_PER_VOLT));
 }
 
+void actualizarGananciaEncoder(float pasosPorMilimetro) {
+    if (!isfinite(pasosPorMilimetro) || pasosPorMilimetro <= 0.0f) {
+        return;
+    }
+
+    encoderStepsPerMillimeter = pasosPorMilimetro;
+}
+
+void actualizarPolaridadEncoder(int32_t polaridad) {
+    if (polaridad >= 0) {
+        encoderPolaritySign = 1;
+    } else {
+        encoderPolaritySign = -1;
+    }
+}
+
+void guardarConfiguracionFlash() {
+    configData.dacOffsetVolts              = dacZeroOffsetVolts;
+    configData.encoderGainStepsPerMillimeter = encoderStepsPerMillimeter;
+    configData.encoderPolaritySign         = encoderPolaritySign;
+
+    if (!configStorage.save(&configData)) {
+        Serial.println("No se pudo guardar la configuración en flash");
+    }
+}
+
+void aplicarConfiguracion(const ConfigStruct& cfg) {
+    actualizarGananciaEncoder(cfg.encoderGainStepsPerMillimeter);
+    actualizarOffsetDAC(cfg.dacOffsetVolts);
+    actualizarPolaridadEncoder(cfg.encoderPolaritySign);
+}
+
+void cargarConfiguracionFlash() {
+    if (!configStorage.begin()) {
+        Serial.println("No se pudo inicializar el almacenamiento de configuración");
+        return;
+    }
+
+    if (configStorage.load(&configData)) {
+        aplicarConfiguracion(configData);
+        Serial.println("Configuración cargada desde flash");
+    } else {
+        // Guardar valores por defecto para disponer de un bloque válido
+        guardarConfiguracionFlash();
+        Serial.println("Configuración por defecto guardada en flash");
+    }
+}
+
+bool tryParseConfigParameter(const char* parametros, ConfigParameter& parameter, const char** valueStart) {
+    if (parametros == nullptr || strlen(parametros) < 2) {
+        return false;
+    }
+
+    char codigoStr[3] = {parametros[0], parametros[1], '\0'};
+    char* endPtr = nullptr;
+    long codigo = strtol(codigoStr, &endPtr, 10);
+
+    if (endPtr != (codigoStr + 2)) {
+        return false;
+    }
+
+    switch (codigo) {
+        case 1:
+            parameter = ConfigParameter::EncoderGain;
+            break;
+        case 2:
+            parameter = ConfigParameter::DacOffset;
+            break;
+        case 3:
+            parameter = ConfigParameter::EncoderPolarity;
+            break;
+        default:
+            return false;
+    }
+
+    const char* inicioValor = parametros + 2;
+    while (*inicioValor == ' ') {
+        ++inicioValor;
+    }
+
+    if (valueStart != nullptr) {
+        *valueStart = inicioValor;
+    }
+
+    return true;
+}
+
+bool procesarLecturaConfiguracion(ConfigParameter parameter) {
+    switch (parameter) {
+        case ConfigParameter::EncoderGain:
+            Serial.println(encoderStepsPerMillimeter, 4);
+            return true;
+        case ConfigParameter::DacOffset:
+            Serial.println(dacZeroOffsetVolts, 3);
+            return true;
+        case ConfigParameter::EncoderPolarity:
+            Serial.println(encoderPolaritySign);
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool procesarEscrituraConfiguracion(ConfigParameter parameter, const char* valueStart) {
+    if (valueStart == nullptr || *valueStart == '\0') {
+        return false;
+    }
+
+    char* endPtr = nullptr;
+
+    switch (parameter) {
+        case ConfigParameter::EncoderGain: {
+            float ganancia = strtof(valueStart, &endPtr);
+            if (endPtr == valueStart || !isfinite(ganancia) || ganancia <= 0.0f) {
+                return false;
+            }
+            actualizarGananciaEncoder(ganancia);
+            guardarConfiguracionFlash();
+            Serial.println(encoderStepsPerMillimeter, 4);
+            return true;
+        }
+        case ConfigParameter::DacOffset: {
+            float offset = strtof(valueStart, &endPtr);
+            if (endPtr == valueStart || !isfinite(offset)) {
+                return false;
+            }
+            actualizarOffsetDAC(offset);
+            actualizarSalidaVelocidad();
+            guardarConfiguracionFlash();
+            Serial.println(dacZeroOffsetVolts, 3);
+            return true;
+        }
+        case ConfigParameter::EncoderPolarity: {
+            int32_t polaridad = static_cast<int32_t>(strtol(valueStart, &endPtr, 10));
+            if (endPtr == valueStart || polaridad == 0) {
+                return false;
+            }
+            actualizarPolaridadEncoder(polaridad);
+            guardarConfiguracionFlash();
+            Serial.println(encoderPolaritySign);
+            return true;
+        }
+        default:
+            return false;
+    }
+}
+
+bool procesarComandoConfiguracion(const char* comando, const char* parametros) {
+    ConfigParameter parametro;
+    const char* valueStart = nullptr;
+
+    if (!tryParseConfigParameter(parametros, parametro, &valueStart)) {
+        return false;
+    }
+
+    if (strcmp(comando, "RP") == 0) {
+        return procesarLecturaConfiguracion(parametro);
+    }
+
+    if (strcmp(comando, "WP") == 0) {
+        return procesarEscrituraConfiguracion(parametro, valueStart);
+    }
+
+    return false;
+}
+
 float convertirParametroVelocidad(float parametro) {
     if (!isfinite(parametro)) {
         return 0.0f;
@@ -128,17 +319,43 @@ float convertirParametroVelocidad(float parametro) {
         }
     }
 
-    if (parametro < 0.0f) {
-        parametro = 0.0f;
-    }
     if (parametro > VELOCIDAD_MAX_MM_MIN) {
         parametro = VELOCIDAD_MAX_MM_MIN;
+    }
+    if (parametro < -VELOCIDAD_MAX_MM_MIN) {
+        parametro = -VELOCIDAD_MAX_MM_MIN;
     }
 
     return parametro;
 }
 
 } // namespace
+
+float convertirContadorAMilimetros(long valor) {
+    if (encoderStepsPerMillimeter <= 0.0f) {
+        return 0.0f;
+    }
+
+    double pasos = static_cast<double>(valor);
+    double milimetros = pasos / static_cast<double>(encoderStepsPerMillimeter);
+    milimetros *= static_cast<double>(encoderPolaritySign);
+
+    return static_cast<float>(milimetros);
+}
+
+void InicializarConfiguracion() {
+    cargarConfiguracionFlash();
+}
+
+void Parar() {
+    velocidadConsigna = 0.0f;
+
+    CambiarBit(&estado_maquina, 0, 0);
+    CambiarBit(&estado_maquina, 1, 0);
+    CambiarBit(&estado_maquina, 2, 1);
+
+    actualizarSalidaVelocidad();
+}
 
 void CommandWF(float param1, float param2) {
 
@@ -160,11 +377,7 @@ void CommandWR(float param1, float param2) {
 }
 
 void CommandWS(float param1, float param2) {
-        CambiarBit(&estado_maquina, 0, 0);
-        CambiarBit(&estado_maquina, 1, 0);
-        CambiarBit(&estado_maquina, 2, 1);
-
-        actualizarSalidaVelocidad();
+        Parar();
         Serial.write(13);
 }
 
@@ -216,6 +429,10 @@ void CommandRate(float param1, float param2) {
     }
 }
 
+void CommandRR(float param1, float param2) {
+    Serial.println(dataRate);
+}
+
 
 void CommandRI(float param1, float param2) {
 	Serial.println("RABBIT");
@@ -249,7 +466,13 @@ void CommandWV(float param1, float param2) {
 void CommandWO(float param1, float param2) {
         actualizarOffsetDAC(param1);
         actualizarSalidaVelocidad();
+        guardarConfiguracionFlash();
         Serial.println(dacZeroOffsetVolts, 3);
+}
+
+void CommandWZ(float param1, float param2) {
+    int32_t result = AD7175_SystemZeroScaleCalibrate();
+    Serial.println("");
 }
 
 void CommandROffset(float param1, float param2) {
@@ -257,28 +480,81 @@ void CommandROffset(float param1, float param2) {
 }
 
 void CommandWE(float param1, float param2) {
-	Serial.println("");
+        if (!isfinite(param1) || param1 <= 0.0f) {
+                Serial.println("ERR");
+                return;
+        }
+
+        actualizarGananciaEncoder(param1);
+        guardarConfiguracionFlash();
+        Serial.println(encoderStepsPerMillimeter, 4);
+}
+
+void CommandRE(float param1, float param2) {
+        Serial.println(encoderStepsPerMillimeter, 4);
+}
+
+void CommandWP(float param1, float param2) {
+        if (!isfinite(param1)) {
+                Serial.println("ERR");
+                return;
+        }
+
+        int32_t polaridad = static_cast<int32_t>(lrintf(param1));
+
+        if (polaridad == 0) {
+                Serial.println("ERR");
+                return;
+        }
+
+        actualizarPolaridadEncoder(polaridad);
+        guardarConfiguracionFlash();
+        Serial.println(encoderPolaritySign);
+}
+
+void CommandRP(float param1, float param2) {
+        Serial.println(encoderPolaritySign);
 }
 
 void CommandWI(float param1, float param2) {
-	Serial.println("");
+        Serial.println("");
 }
 
 void CommandR1(float param1, float param2) {
-        Serial.println(velocidadConsigna, 2);
+        sensorDataMutex.lock();
+        float fuerza = sensorData.fuerza;
+        sensorDataMutex.unlock();
+
+        Serial.println(fuerza, 4);
 }
 
 void CommandR2(float param1, float param2) {
-    unsigned long  valor = Encoder.read_counter();
-	Serial.println(valor, 4);
+    if (encoderStepsPerMillimeter <= 0.0f) {
+        Serial.println("ERR");
+        return;
+    }
+
+    sensorDataMutex.lock();
+    float extension = sensorData.extension;
+    sensorDataMutex.unlock();
+
+    Serial.println(extension, 4);
+}
+
+void CommandR3(float param1, float param2) {
+    sensorDataMutex.lock();
+    float voltaje = sensorData.voltaje;
+    sensorDataMutex.unlock();
+
+    Serial.println(voltaje, 4);
 }
 
 void CommandRS(float param1, float param2) {
-	alarmas.comprobar();
+    sensorDataMutex.lock();
+    uint8_t alarmasByte = static_cast<uint8_t>(sensorData.estado & 0xFFu);
+    uint8_t statusByte  = static_cast<uint8_t>((sensorData.estado >> 8) & 0xFFu);
+    sensorDataMutex.unlock();
 
-    volatile uint8_t alarmasByte = alarmas.getAlarmas();
-    volatile uint8_t statusByte  = alarmas.getStatus();
-    
     // Delphi pide 3 bytes; usa solo el primero (alarmas)
     Serial.write(alarmasByte);   // buf[1] en Delphi
     Serial.write(statusByte);    // buf[2] (por si otra función lo usa)
@@ -294,7 +570,7 @@ void CommandWB(float param1, float param2) {
 }
 
 void CommandWT(float param1, float param2) {
-	Serial.println("");
+        Serial.println("");
 }
 
 
@@ -304,27 +580,33 @@ ComandoMap comandoMaps[] = {
     {"WS", CommandWS, 2},
 	{"A0", CommandAD0, 3}, // Reset ADC
 	{"A1", CommandAD1, 4}, // calibrar internaloffset
-	{"A2", CommandAD2, 5}, // calibrar sysoffset
-	{"A3", CommandAD3, 6}, // calibrar systemgain
-	{"A4", CommandAD4, 7}, // calibrar internalgain
-	{"S0", CommandS0, 8}, // iniciar envio datos
-	{"S1", CommandRate, 9}, // Modificar datarate
+        {"A2", CommandAD2, 5}, // calibrar sysoffset
+        {"A3", CommandAD3, 6}, // calibrar systemgain
+        {"A4", CommandAD4, 7}, // calibrar internalgain
+        {"S0", CommandS0, 8}, // iniciar envio datos
+        {"S1", CommandRate, 9}, // Modificar datarate
+        {"RR", CommandRR, 29}, // Leer datarate actual
     {"RI", CommandRI, 10},
-	{"RC", CommandRC, 11},
-	{"RX", CommandRX, 12}, // Hay extensometro ?
-	{"WM", CommandWM, 13}, // Modo remoto
+        {"RC", CommandRC, 11},
+        {"RX", CommandRX, 12}, // Hay extensometro ?
+        {"WM", CommandWM, 13}, // Modo remoto
         {"RV", CommandRV, 14}, // Velocdidad maxima ?
         {"WV", CommandWV, 15},
         {"WI", CommandWV, 16},
         {"WO", CommandWO, 17}, // Ajuste offset analógico en volts
         {"RO", CommandROffset, 18},
-        {"R1", CommandR1, 19},
-        {"R2", CommandR2, 20},
-        {"RS", CommandRS, 21},
-        {"RH", CommandRH, 22}, // Ensayo en curso ?
-        {"WB", CommandRS, 23}, // Alarma baja velo
-        {"WT", CommandWT, 24},
-        {"WE", CommandWE, 25},
+        {"WE", CommandWE, 19},
+        {"RE", CommandRE, 20},
+        {"WP", CommandWP, 21},
+        {"RP", CommandRP, 22},
+        {"R1", CommandR1, 23},
+        {"R2", CommandR2, 24},
+        {"R3", CommandR3, 30},
+        {"RS", CommandRS, 25},
+        {"RH", CommandRH, 26}, // Ensayo en curso ?
+        {"WB", CommandRS, 27}, // Alarma baja velo
+        {"WT", CommandWT, 28},
+        {"WZ", CommandWZ, 31}, // Cero de fuerza vía kernel
     {NULL, NULL, -1} // Marca el fin de la lista
 };
 
@@ -406,7 +688,7 @@ bool ProcesarComandoNuevo(uint8_t* Buf, uint32_t Len) {
 bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len) {
     char mensaje[100];
 
-    
+
     if (Len >= sizeof(mensaje))
         return false;
     memcpy(mensaje, Buf, Len);
@@ -420,28 +702,45 @@ bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len) {
     comando[0] = mensaje[0];
     comando[1] = mensaje[1];
     comando[2] = '\0';
+
+    const char* parametros = (l > 2) ? mensaje + 2 : "";
+
+    if (strcmp(comando, "WP") == 0 || strcmp(comando, "RP") == 0) {
+        if (procesarComandoConfiguracion(comando, parametros)) {
+            return true;
+        }
+        Serial.println("ERR");
+        return true;
+    }
+
     float param1 = 0.0f;
     float param2 = 0.0f;
     // Si hay más caracteres, convertirlos a número (desde la posición 2)
     if (l > 2) {
-        param1 = atof(mensaje + 2);
+        param1 = atof(parametros);
     }
-    
+
     return ProcesarComando(comando, param1, param2);
 }
 
 // Función unificada para procesar el mensaje recibido según el protocolo activo
 bool ProcesarMensaje(uint8_t* Buf, uint32_t Len) {
-	
+
     if (protocoloActual == PROTOCOLO_NUEVO) {
-        
+
         // Si se recibe el comando "RI\r", cambiar a modo antiguo.
         if (Len == 2 && strncmp((char*)Buf, "RI", 2) == 0) {
-            
+
             protocoloActual = PROTOCOLO_VIEJO;
             return ProcesarComandoViejo(Buf, Len);
         }
-        return ProcesarComandoNuevo(Buf, Len);
+        if (ProcesarComandoNuevo(Buf, Len)) {
+            return true;
+        }
+
+        // Compatibilidad: si el formato con tuberías falla, intentar el protocolo viejo
+        protocoloActual = PROTOCOLO_VIEJO;
+        return ProcesarComandoViejo(Buf, Len);
     } else {
         return ProcesarComandoViejo(Buf, Len);
     }

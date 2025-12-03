@@ -22,20 +22,24 @@ using namespace rtos;
 
 void SerialEvent();
 void enviarDatosSensor(DatosSensor datos);
+void SensorUpdateLoop();
+int32_t TaraCelula();
 
 LTC2602 LTCdac;
-//MCP23S08 mcp(PC_15);
 LS7366 Encoder;
 IO IOsystem;
 Alarmas alarmas(IOsystem);
 
 Thread RecepcionComms;
 Thread TransmisionComms;
+Thread SensorUpdateThread;
+rtos::Mutex sensorDataMutex;
 
 DatosSensor sensorData;
 uint32_t estado_maquina;
 volatile uint32_t dataRate = 100;
 bool transmitirDatos = false;
+bool ad7175Inicializado = false;
 
 void setup() {
   
@@ -49,37 +53,27 @@ void setup() {
   Serial.println("Booting Kernel...");
   
   LTCdac.begin();
-  //mcp.begin();
   IOsystem.begin();
   Encoder.begin();
   alarmas.inicializar();
-  
-  
-  
-/*
- if (AD7175_Setup() != 0) {
-        Serial.println("AD7175 Initialization Failed");
-        
-    } else {
-        Serial.println("AD7175 Initialized Successfully");
-    }
-*/
-/*
-  // Rellenamos algunos datos de ejemplo
-  sensorData.fuerza = 123.45;
-  sensorData.extension = 0;
-  sensorData.timestamp = millis();
-  sensorData.estado = 0x01;
-  sensorData.statusReg = 0x02;
-  sensorData.modeReg = 0x03;
-  sensorData.ch0Reg = 0x04;
-  sensorData.ch0GainReg = 0x05;
-  sensorData.maxForce = 500.0;
-  sensorData.checksum = 0xFFFF;
-*/
+  InicializarConfiguracion();
+
+
+
+  if (AD7175_Setup() != 0) {
+    Serial.println("AD7175 Initialization Failed");
+  } else {
+    ad7175Inicializado = true;
+    Serial.println("AD7175 Initialized Successfully");
+  }
+
+  //TaraCelula();
 
   //TransmisionComms.start(mbed::callback(TransmisionLoop));
   //TransmisionComms.set_priority(osPriorityHigh);
+
+  SensorUpdateThread.start(mbed::callback([] { SensorUpdateLoop(); }));
+  SensorUpdateThread.set_priority(osPriorityHigh);
 
   RecepcionComms.start(mbed::callback(SerialEvent));
   RecepcionComms.set_priority(osPriorityHigh);
@@ -87,141 +81,11 @@ void setup() {
   
 }
 
-/*
 
-void loop1() {
-
-
-    digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
-    delay(500); 
-  
-    byte inputs = mcp.readRegister(0x09);
-    Serial.println(inputs, BIN);  // Mostrar en binario
-    Serial.println("loop()");
-
-    digitalWrite(LED_BUILTIN, LOW);   // turn the LED off by making the voltage LOW
-    delay(500);    
-    
-}
-
-*/
-constexpr float   VREF_V = 2.500f; // Voltaje de referencia (V)
-constexpr int     PGA_GAIN = 1;    // Ganancia del PGA usada en SETUP0
-
-void loop_analog() {
-  if (AD7175_WaitForReady(200)) {
-    int32_t raw = 0;
-    if (AD7175_ReadData(&raw)) {
-      // raw es 24 bits con sign-extend a 32 (bipolar, 2^23 a FS)
-      // LSB (V) = Vref / (Gain * 2^23)
-      const float lsb_V = VREF_V / (PGA_GAIN * 8388608.0f); // 2^23 = 8,388,608
-      float volts = raw * lsb_V;
-
-      Serial.print("RAW= ");
-      Serial.print(raw);
-      Serial.print("\tV= ");
-      Serial.println(volts, 6);
-    } else {
-      Serial.println("Error de lectura de DATA");
-    }
-  } else {
-    Serial.println("Timeout esperando dato listo");
-  }
-
-  delay(500);
-}
-
-/*
-void loop() {
-
-
-    digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
-    delay(500); 
-  
-    unsigned long  valor = Encoder.read_counter();
-    Serial.println(valor);  // Mostrar en binario
-    
-
-    digitalWrite(LED_BUILTIN, LOW);   // turn the LED off by making the voltage LOW
-    delay(1500);    
-    
-}
-
-
-
-
-
-/*
-
-void loop3() {
-
-
-    digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
-    
-  
-    LTCdac.setOutput(0, 0);
-    LTCdac.setOutput(1, 0);
-
-    digitalWrite(LED_BUILTIN, LOW);   // turn the LED off by making the voltage LOW
-    delay(2000);   
-    
-    LTCdac.setOutput(0, 32766);
-    LTCdac.setOutput(1, 32766); 
-
-    delay(2000);   
-    
-    LTCdac.setOutput(0, 65535);
-    LTCdac.setOutput(1, 65535); 
-    delay(2000);
-    
-}
-
-*/
-// Loop para probar salidas analogicas  
-
-void loop_org() {
-  // Ciclo de subida en 1 segundo (0 -> 65535)
-  // Usamos 101 pasos: de i=0 a i=100
-  for (int i = 0; i <= 100; i++) {
-    // Escalamos 'i' a un rango de 0 a ~65500
-    uint16_t value = i * 655; // 655 aprox (65535 / 100)
-    
-    // Ajustamos ambos canales con el mismo valor
-    LTCdac.setOutput(0, value);
-    LTCdac.setOutput(1, value);
-    
-    // Retardo de 10 ms para que 101 pasos tomen ~1 segundo
-    delay(100);
-    Serial.println(value);
- 
-  }
-
-  // Ciclo de bajada en 1 segundo (65535 -> 0)
-  for (int i = 100; i >= 0; i--) {
-    uint16_t value = i * 655;
-    LTCdac.setOutput(0, value);
-    LTCdac.setOutput(1, value);
-    delay(100);
-    Serial.println(value);
-  }
-}
 
 
 void loop() {
-  /*
-digitalWrite(LED_BUILTIN, HIGH);
-//LTCdac.setOutput(0, 0);
-//LTCdac.setOutput(1, 0);
 
-delay(10);
-
-digitalWrite(LED_BUILTIN, LOW);
-//LTCdac.setOutput(0, 65535);
-//LTCdac.setOutput(1, 65535);
-
-delay(10);
-*/
- 
 }
 
 
@@ -234,15 +98,80 @@ void TransmisionLoop() {
 
       
       if ((uint32_t)(currentTime - lastSendTime) >= interval_ms) {
-        sensorData.extension += 1;
-        sensorData.estado = estado_maquina;
-        enviarDatosSensor(sensorData);
-        lastSendTime += interval_ms; 
+        sensorDataMutex.lock();
+        DatosSensor datos = sensorData;
+        sensorDataMutex.unlock();
+
+        enviarDatosSensor(datos);
+        lastSendTime += interval_ms;
       }
     }
-    osDelay(1); 
+    osDelay(1);
   }
 }
+
+
+
+
+constexpr float   VREF_V            = 3.300f; // ya lo tienes definido
+constexpr int     PGA_GAIN          = 1;      // el que uses en el SETUP0
+constexpr float   F_FULLSCALE_N     = 50.0f;  // tu célula es de 50 N
+constexpr float   CELL_SENS_MV_PER_V= 2.0f;   // EJEMPLO: 2 mV/V (cámbialo)
+constexpr float   EXCITATION_V      = 10.0f;   // tensión que le das al puente
+
+constexpr float RAW_ZERO          = 0;//8.327;                   // lectura sin carga
+constexpr float SCALE_N_PER_COUNT = 0.000007906f;
+
+float g_offsetVolt = 0.0f;
+
+
+void SensorUpdateLoop() {
+  float ultimaFuerzaLeida = 0.0f;
+  int32_t raw = 0;
+
+  while (true) {
+    // Comprobar alarmas de IO / seguridad / etc.
+    alarmas.comprobar();
+
+    // Lectura de la celda de carga a través del AD7175.
+    if (ad7175Inicializado && AD7175_WaitForReady(5) == 0) {
+      
+      if (AD7175_ReadData(&raw) == 0) {
+
+        // raw ya es 24 bits con signo extendido (bipolar)
+        // Fuerza en Newtons usando la calibración 0 kg / 1 kg
+        float fuerzaN = (raw) * SCALE_N_PER_COUNT;
+
+        ultimaFuerzaLeida = (fuerzaN - RAW_ZERO); // Ajusta este offset según tu tara
+      }
+    }
+
+    // Lectura del encoder y conversión a mm.
+    long  contador    = Encoder.read_counter();
+    float extensionMm = convertirContadorAMilimetros(contador);
+
+    
+    // Empaquetar estado para el canal de comunicación.
+    uint32_t estadoCombinado = 0;
+    estadoCombinado |= static_cast<uint32_t>(alarmas.getAlarmas());
+    estadoCombinado |= static_cast<uint32_t>(alarmas.getStatus()) << 8;
+    estadoCombinado |= estado_maquina << 16;
+
+    // Publicar datos de sensor de forma atómica.
+    sensorDataMutex.lock();
+    sensorData.fuerza    = ultimaFuerzaLeida;
+    sensorData.voltaje  = AD7175_Voltage(raw);
+    sensorData.extension = extensionMm;
+    sensorData.estado    = estadoCombinado;
+    sensorData.timestamp = millis();
+    sensorDataMutex.unlock();
+
+    // Periodo de muestreo del lazo de sensores (~10 ms).
+    osDelay(0);
+  }
+}
+
+
 
 
 #define STX 0x02
@@ -306,6 +235,19 @@ void SerialEvent() {
     }
 }
 
+
+int32_t TaraCelula()
+{
+    // Asegúrate de que no haya peso en la célula antes de llamar.
+    if (!ad7175Inicializado) {
+        return -1;
+    }
+
+    // Opcional: podrías comprobar aquí que la máquina está parada
+    // usando las mismas señales que en SensorUpdateLoop.
+
+    return AD7175_SystemZeroScaleCalibrate();
+}
 
 
 /*

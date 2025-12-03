@@ -25,5 +25,8 @@ bool ProcesarComandoNuevo(uint8_t* Buf, uint32_t Len);
 bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len);
 void handleSerialLine(const char* receivedLine);
 void handleTramoCommand(char* s2Pointer);
+void InicializarConfiguracion();
+float convertirContadorAMilimetros(long contador);
+void Parar();
 
 #endif /* INC_GESTIONCOMANDOS_H_ */

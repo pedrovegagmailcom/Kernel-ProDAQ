@@ -6,29 +6,74 @@ using System.Globalization;
 using System.IO.Ports;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Threading;
 
 namespace ProDAQConfig
 {
-    /// <summary>
-    /// L�gica de interacci�n para MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window, INotifyPropertyChanged
     {
+        private const double MaxSpeedSetpoint = 500.0;
+
         private readonly ObservableCollection<string> _availablePorts = new ObservableCollection<string>();
         private readonly DispatcherTimer _telemetryTimer;
         private readonly object _serialLock = new object();
         private SerialPort _serialPort;
 
+        private double? _forceZeroReference;
+        private double? _encoderZeroReference;
+        private double? _lastForceValue;
+        private double? _lastEncoderValueMm;
+        private DateTime _lastTelemetryTimestamp = DateTime.MinValue;
+        private readonly Queue<DateTime> _telemetryTimestamps = new Queue<DateTime>();
+
         private string _selectedPort;
         private string _statusMessage = "Seleccione un puerto y presione Conectar";
+        private string _communicationStatus = "Sin comunicación";
         private string _forceReading = "--";
+        private string _voltageReading = "--";
         private string _encoderReading = "--";
         private string _alarmStatus = "--";
-        private double _offsetValue;
+        private string _dataRateStatus = "--";
+        private double _coarseOffsetValue;
+        private double _fineOffsetAdjustment;
+        private bool _suppressFineOffsetAutoApply;
+        private double _encoderGain = 1.0;
+        private double _speedSetpoint = 100.0;
+        private bool _isEncoderInverted;
         private bool _isConnected;
+        private bool _communicationHealthy;
+        private bool _isManualUpActive;
+        private bool _isManualDownActive;
+        private bool _isManualStopActive = true;
+
+        // Estado de alarmas individuales
+        private bool _alarmMotorActive;
+        private bool _alarmCompresorActive;
+        private bool _alarmFciActive;
+        private bool _alarmTraccionActive;
+        private bool _alarmFcsActive;
+        private bool _alarmSetaActive;
+        private bool _alarmCeroActive;
+        private bool _alarmCelulaActive;
+
+        // Resumen
+        private int _activeAlarmCount;
+        private bool _hasActiveAlarms;
+
+        // Bits de estado
+        private bool _statusUpDownOn;
+        private bool _statusStopOn;
+        private bool _statusRemoteOn;
+
+        private enum ManualControlState
+        {
+            Up,
+            Down,
+            Stop
+        }
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -37,9 +82,11 @@ namespace ProDAQConfig
             InitializeComponent();
             DataContext = this;
 
+            Loaded += MainWindow_OnLoaded;
+
             _telemetryTimer = new DispatcherTimer
             {
-                Interval = TimeSpan.FromSeconds(1.5)
+                Interval = TimeSpan.FromSeconds(0.01)
             };
             _telemetryTimer.Tick += TelemetryTimerOnTick;
 
@@ -74,6 +121,19 @@ namespace ProDAQConfig
             }
         }
 
+        public string CommunicationStatus
+        {
+            get => _communicationStatus;
+            private set
+            {
+                if (_communicationStatus != value)
+                {
+                    _communicationStatus = value;
+                    OnPropertyChanged(nameof(CommunicationStatus));
+                }
+            }
+        }
+
         public string ForceReading
         {
             get => _forceReading;
@@ -83,6 +143,19 @@ namespace ProDAQConfig
                 {
                     _forceReading = value;
                     OnPropertyChanged(nameof(ForceReading));
+                }
+            }
+        }
+
+        public string VoltageReading
+        {
+            get => _voltageReading;
+            set
+            {
+                if (_voltageReading != value)
+                {
+                    _voltageReading = value;
+                    OnPropertyChanged(nameof(VoltageReading));
                 }
             }
         }
@@ -113,18 +186,57 @@ namespace ProDAQConfig
             }
         }
 
-        public double OffsetValue
+        public string DataRateStatus
         {
-            get => _offsetValue;
+            get => _dataRateStatus;
+            private set
+            {
+                if (_dataRateStatus != value)
+                {
+                    _dataRateStatus = value;
+                    OnPropertyChanged(nameof(DataRateStatus));
+                }
+            }
+        }
+
+        public double CoarseOffsetValue
+        {
+            get => _coarseOffsetValue;
             set
             {
-                if (Math.Abs(_offsetValue - value) > double.Epsilon)
+                var clamped = Math.Max(-1.0, Math.Min(1.0, value));
+                var rounded = Math.Round(clamped, 3);
+                if (Math.Abs(_coarseOffsetValue - rounded) > double.Epsilon)
                 {
-                    _offsetValue = Math.Round(value, 3);
+                    _coarseOffsetValue = rounded;
+                    OnPropertyChanged(nameof(CoarseOffsetValue));
                     OnPropertyChanged(nameof(OffsetValue));
                 }
             }
         }
+
+        public double FineOffsetAdjustment
+        {
+            get => _fineOffsetAdjustment;
+            set
+            {
+                var clamped = Math.Max(-0.1, Math.Min(0.1, value));
+                var rounded = Math.Round(clamped, 3);
+                if (Math.Abs(_fineOffsetAdjustment - rounded) > double.Epsilon)
+                {
+                    _fineOffsetAdjustment = rounded;
+                    OnPropertyChanged(nameof(FineOffsetAdjustment));
+                    OnPropertyChanged(nameof(OffsetValue));
+
+                    if (!_suppressFineOffsetAutoApply && _serialPort != null && IsConnected)
+                    {
+                        _ = ApplyOffsetAsync();
+                    }
+                }
+            }
+        }
+
+        public double OffsetValue => Math.Round(Math.Max(-1.0, Math.Min(1.0, _coarseOffsetValue + _fineOffsetAdjustment)), 3);
 
         public bool IsConnected
         {
@@ -138,6 +250,273 @@ namespace ProDAQConfig
                 }
             }
         }
+
+        public bool CommunicationHealthy
+        {
+            get => _communicationHealthy;
+            private set
+            {
+                if (_communicationHealthy != value)
+                {
+                    _communicationHealthy = value;
+                    OnPropertyChanged(nameof(CommunicationHealthy));
+                }
+            }
+        }
+
+        public double EncoderGain
+        {
+            get => _encoderGain;
+            set
+            {
+                var rounded = Math.Round(value, 4);
+                if (Math.Abs(_encoderGain - rounded) > double.Epsilon)
+                {
+                    _encoderGain = rounded;
+                    OnPropertyChanged(nameof(EncoderGain));
+                }
+            }
+        }
+
+        public double SpeedSetpoint
+        {
+            get => _speedSetpoint;
+            set
+            {
+                var clamped = Math.Max(0.0, Math.Min(value, MaxSpeedSetpoint));
+                var rounded = Math.Round(clamped, 1);
+                if (Math.Abs(_speedSetpoint - rounded) > double.Epsilon)
+                {
+                    _speedSetpoint = rounded;
+                    OnPropertyChanged(nameof(SpeedSetpoint));
+                }
+            }
+        }
+
+        public bool IsEncoderInverted
+        {
+            get => _isEncoderInverted;
+            set
+            {
+                if (_isEncoderInverted != value)
+                {
+                    _isEncoderInverted = value;
+                    OnPropertyChanged(nameof(IsEncoderInverted));
+                }
+            }
+        }
+
+        #region Propiedades de alarmas
+
+        public bool AlarmMotorActive
+        {
+            get => _alarmMotorActive;
+            private set
+            {
+                if (_alarmMotorActive != value)
+                {
+                    _alarmMotorActive = value;
+                    OnPropertyChanged(nameof(AlarmMotorActive));
+                }
+            }
+        }
+
+        public bool AlarmCompresorActive
+        {
+            get => _alarmCompresorActive;
+            private set
+            {
+                if (_alarmCompresorActive != value)
+                {
+                    _alarmCompresorActive = value;
+                    OnPropertyChanged(nameof(AlarmCompresorActive));
+                }
+            }
+        }
+
+        public bool AlarmFCIActive
+        {
+            get => _alarmFciActive;
+            private set
+            {
+                if (_alarmFciActive != value)
+                {
+                    _alarmFciActive = value;
+                    OnPropertyChanged(nameof(AlarmFCIActive));
+                }
+            }
+        }
+
+        public bool AlarmTraccionActive
+        {
+            get => _alarmTraccionActive;
+            private set
+            {
+                if (_alarmTraccionActive != value)
+                {
+                    _alarmTraccionActive = value;
+                    OnPropertyChanged(nameof(AlarmTraccionActive));
+                }
+            }
+        }
+
+        public bool AlarmFCSActive
+        {
+            get => _alarmFcsActive;
+            private set
+            {
+                if (_alarmFcsActive != value)
+                {
+                    _alarmFcsActive = value;
+                    OnPropertyChanged(nameof(AlarmFCSActive));
+                }
+            }
+        }
+
+        public bool AlarmSetaActive
+        {
+            get => _alarmSetaActive;
+            private set
+            {
+                if (_alarmSetaActive != value)
+                {
+                    _alarmSetaActive = value;
+                    OnPropertyChanged(nameof(AlarmSetaActive));
+                }
+            }
+        }
+
+        public bool AlarmCeroActive
+        {
+            get => _alarmCeroActive;
+            private set
+            {
+                if (_alarmCeroActive != value)
+                {
+                    _alarmCeroActive = value;
+                    OnPropertyChanged(nameof(AlarmCeroActive));
+                }
+            }
+        }
+
+        public bool AlarmCelulaActive
+        {
+            get => _alarmCelulaActive;
+            private set
+            {
+                if (_alarmCelulaActive != value)
+                {
+                    _alarmCelulaActive = value;
+                    OnPropertyChanged(nameof(AlarmCelulaActive));
+                }
+            }
+        }
+
+        public int ActiveAlarmCount
+        {
+            get => _activeAlarmCount;
+            private set
+            {
+                if (_activeAlarmCount != value)
+                {
+                    _activeAlarmCount = value;
+                    OnPropertyChanged(nameof(ActiveAlarmCount));
+                }
+            }
+        }
+
+        public bool HasActiveAlarms
+        {
+            get => _hasActiveAlarms;
+            private set
+            {
+                if (_hasActiveAlarms != value)
+                {
+                    _hasActiveAlarms = value;
+                    OnPropertyChanged(nameof(HasActiveAlarms));
+                }
+            }
+        }
+
+        public bool StatusUpDownOn
+        {
+            get => _statusUpDownOn;
+            private set
+            {
+                if (_statusUpDownOn != value)
+                {
+                    _statusUpDownOn = value;
+                    OnPropertyChanged(nameof(StatusUpDownOn));
+                }
+            }
+        }
+
+        public bool StatusStopOn
+        {
+            get => _statusStopOn;
+            private set
+            {
+                if (_statusStopOn != value)
+                {
+                    _statusStopOn = value;
+                    OnPropertyChanged(nameof(StatusStopOn));
+                }
+            }
+        }
+
+        public bool StatusRemoteOn
+        {
+            get => _statusRemoteOn;
+            private set
+            {
+                if (_statusRemoteOn != value)
+                {
+                    _statusRemoteOn = value;
+                    OnPropertyChanged(nameof(StatusRemoteOn));
+                }
+            }
+        }
+
+        public bool IsManualUpActive
+        {
+            get => _isManualUpActive;
+            private set
+            {
+                if (_isManualUpActive != value)
+                {
+                    _isManualUpActive = value;
+                    OnPropertyChanged(nameof(IsManualUpActive));
+                }
+            }
+        }
+
+        public bool IsManualDownActive
+        {
+            get => _isManualDownActive;
+            private set
+            {
+                if (_isManualDownActive != value)
+                {
+                    _isManualDownActive = value;
+                    OnPropertyChanged(nameof(IsManualDownActive));
+                }
+            }
+        }
+
+        public bool IsManualStopActive
+        {
+            get => _isManualStopActive;
+            private set
+            {
+                if (_isManualStopActive != value)
+                {
+                    _isManualStopActive = value;
+                    OnPropertyChanged(nameof(IsManualStopActive));
+                }
+            }
+        }
+
+        #endregion
 
         private async void TelemetryTimerOnTick(object sender, EventArgs e)
         {
@@ -166,39 +545,191 @@ namespace ProDAQConfig
                 : "Seleccione el puerto que desea utilizar";
         }
 
-        private void ConnectButton_Click(object sender, RoutedEventArgs e)
+        private void UpdateCommunicationHealth(bool telemetryReceived)
+        {
+            if (telemetryReceived)
+            {
+                _lastTelemetryTimestamp = DateTime.UtcNow;
+            }
+
+            var now = DateTime.UtcNow;
+            var isHealthy = IsConnected && (now - _lastTelemetryTimestamp) < TimeSpan.FromSeconds(2);
+
+            CommunicationHealthy = isHealthy;
+            CommunicationStatus = isHealthy
+                ? "Comunicación con la máquina activa"
+                : "Sin comunicación con la máquina";
+
+            if (!isHealthy)
+            {
+                DataRateStatus = "--";
+                _telemetryTimestamps.Clear();
+            }
+        }
+
+        private void UpdateDataRate()
+        {
+            if (!IsConnected)
+            {
+                DataRateStatus = "--";
+                _telemetryTimestamps.Clear();
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+            _telemetryTimestamps.Enqueue(now);
+
+            while (_telemetryTimestamps.Count > 0 && (now - _telemetryTimestamps.Peek()) > TimeSpan.FromSeconds(5))
+            {
+                _telemetryTimestamps.Dequeue();
+            }
+
+            if (_telemetryTimestamps.Count < 2)
+            {
+                DataRateStatus = "--";
+                return;
+            }
+
+            var windowStart = _telemetryTimestamps.Peek();
+            var elapsedSeconds = (now - windowStart).TotalSeconds;
+            if (elapsedSeconds <= 0)
+            {
+                DataRateStatus = "--";
+                return;
+            }
+
+            var samples = _telemetryTimestamps.Count - 1; // intervals between samples
+            var rate = samples / elapsedSeconds;
+            DataRateStatus = $"{rate:F1} Hz";
+        }
+
+        private async void MainWindow_OnLoaded(object sender, RoutedEventArgs e)
+        {
+            await AttemptAutoConnectionAsync();
+        }
+
+        private async void ConnectButton_Click(object sender, RoutedEventArgs e)
         {
             if (IsConnected)
             {
-                StatusMessage = "Ya existe una conexi�n activa";
+                StatusMessage = "Ya existe una conexión activa";
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(SelectedPort))
+            await ConnectToPortAsync(SelectedPort, false);
+        }
+
+        private async Task AttemptAutoConnectionAsync()
+        {
+            var portsToTry = _availablePorts.ToList();
+            if (portsToTry.Count == 0)
             {
-                StatusMessage = "Seleccione un puerto";
+                StatusMessage = "No se detectan puertos disponibles";
                 return;
             }
+
+            var cancellation = new CancellationTokenSource();
+            var autoConnectDialog = new AutoConnectDialog(cancellation)
+            {
+                Owner = this
+            };
+
+            autoConnectDialog.Show();
 
             try
             {
-                _serialPort = new SerialPort(SelectedPort, 115200, Parity.None, 8, StopBits.One)
+                foreach (var port in portsToTry)
+                {
+                    if (cancellation.IsCancellationRequested)
+                    {
+                        StatusMessage = "Búsqueda cancelada";
+                        return;
+                    }
+
+                    autoConnectDialog.ProgressMessage = $"Buscando electrónica en {port}...";
+                    StatusMessage = autoConnectDialog.ProgressMessage;
+
+                    var connected = await ConnectToPortAsync(port, true);
+                    if (connected)
+                    {
+                        autoConnectDialog.ProgressMessage = $"Conexión automática establecida en {port}";
+                        StatusMessage = autoConnectDialog.ProgressMessage;
+                        return;
+                    }
+                }
+
+                StatusMessage = "No se pudo conectar automáticamente a ningún puerto";
+                autoConnectDialog.ProgressMessage = StatusMessage;
+            }
+            finally
+            {
+                autoConnectDialog.Close();
+            }
+        }
+
+        private async Task<bool> ConnectToPortAsync(string portName, bool isAuto)
+        {
+            if (string.IsNullOrWhiteSpace(portName))
+            {
+                if (!isAuto)
+                {
+                    StatusMessage = "Seleccione un puerto";
+                }
+
+                return false;
+            }
+
+            SerialPort candidatePort = null;
+
+            try
+            {
+                candidatePort = new SerialPort(portName, 115200, Parity.None, 8, StopBits.One)
                 {
                     Encoding = Encoding.ASCII,
                     ReadTimeout = 1000,
                     WriteTimeout = 1000,
                     NewLine = "\r"
                 };
-                _serialPort.Open();
+                candidatePort.Open();
+                candidatePort.DtrEnable = true;
+                candidatePort.WriteLine("RI");
+                var response = candidatePort.ReadLine()?.Trim();
+
+                if (!string.Equals(response, "RABBIT", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException($"Respuesta inesperada de RI: {response ?? "<vacía>"}");
+                }
+
+                _serialPort = candidatePort;
+                SelectedPort = portName;
                 IsConnected = true;
-                _serialPort.DtrEnable = true;
-                StatusMessage = $"Conectado a {SelectedPort}";
+                _telemetryTimestamps.Clear();
+
+                await LoadDeviceConfigurationAsync();
+                StatusMessage = $"Conectado a {portName} [{response}]";
+                UpdateCommunicationHealth(false);
                 _telemetryTimer.Start();
+
+                return true;
             }
             catch (Exception ex)
             {
-                StatusMessage = $"Error al conectar: {ex.Message}";
-                Disconnect();
+                if (_serialPort == null)
+                {
+                    candidatePort?.Dispose();
+                    Disconnect();
+                }
+                else
+                {
+                    Disconnect();
+                }
+
+                if (!isAuto)
+                {
+                    StatusMessage = $"Error al conectar: {ex.Message}";
+                }
+
+                return false;
             }
         }
 
@@ -228,6 +759,12 @@ namespace ProDAQConfig
 
             _serialPort = null;
             IsConnected = false;
+            _lastTelemetryTimestamp = DateTime.MinValue;
+            CommunicationStatus = "Desconectado";
+            CommunicationHealthy = false;
+            DataRateStatus = "--";
+            _telemetryTimestamps.Clear();
+            SetManualControlState(ManualControlState.Stop);
         }
 
         private async void ReadTelemetryButton_Click(object sender, RoutedEventArgs e)
@@ -239,20 +776,84 @@ namespace ProDAQConfig
         {
             if (_serialPort == null || !IsConnected)
             {
+                UpdateCommunicationHealth(false);
                 return;
             }
 
+            var telemetrySucceeded = false;
+
             try
             {
-                ForceReading = await QueryDeviceAsync("R1");
-                EncoderReading = await QueryDeviceAsync("R2");
+                var forceResponse = await QueryDeviceAsync("R1");
+                UpdateForceReading(forceResponse);
+
+                var voltageResponse = await QueryDeviceAsync("R3");
+                UpdateVoltageReading(voltageResponse);
+
+                var encoderResponse = await QueryDeviceAsync("R2");
+                ParseEncoderReading(encoderResponse);
+
                 var (alarmByte, statusByte) = await QueryAlarmBytesAsync();
                 AlarmStatus = FormatAlarmStatus(alarmByte, statusByte);
+
+                telemetrySucceeded = true;
                 StatusMessage = "Lecturas actualizadas";
             }
             catch (Exception ex)
             {
                 StatusMessage = $"Error leyendo datos: {ex.Message}";
+            }
+
+            UpdateCommunicationHealth(telemetrySucceeded);
+
+            if (telemetrySucceeded)
+            {
+                UpdateDataRate();
+            }
+        }
+
+        private async Task LoadDeviceConfigurationAsync()
+        {
+            try
+            {
+                var offsetResponse = await QueryDeviceAsync("RP02");
+                if (double.TryParse(offsetResponse, NumberStyles.Float, CultureInfo.InvariantCulture, out var offset))
+                {
+                    ApplyOffsetFromDevice(offset);
+                }
+
+                var gainResponse = await QueryDeviceAsync("RP01");
+                if (double.TryParse(gainResponse, NumberStyles.Float, CultureInfo.InvariantCulture, out var gain) && gain > 0)
+                {
+                    EncoderGain = gain;
+                }
+
+                var polarityResponse = await QueryDeviceAsync("RP03");
+                if (int.TryParse(polarityResponse, NumberStyles.Integer, CultureInfo.InvariantCulture, out var polarity))
+                {
+                    IsEncoderInverted = polarity < 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"No se pudo leer la configuración: {ex.Message}";
+            }
+        }
+
+        private void ApplyOffsetFromDevice(double offset)
+        {
+            _suppressFineOffsetAutoApply = true;
+            try
+            {
+                var coarse = Math.Max(-1.0, Math.Min(1.0, offset));
+                CoarseOffsetValue = Math.Round(coarse, 3);
+
+                var remainder = offset - coarse;
+                FineOffsetAdjustment = Math.Round(Math.Max(-0.1, Math.Min(0.1, remainder)), 3);
+            }
+            finally
+            {
+                _suppressFineOffsetAutoApply = false;
             }
         }
 
@@ -264,7 +865,7 @@ namespace ProDAQConfig
                 {
                     if (_serialPort == null || !_serialPort.IsOpen)
                     {
-                        throw new InvalidOperationException("El puerto no est� abierto");
+                        throw new InvalidOperationException("El puerto no está abierto");
                     }
 
                     _serialPort.DiscardInBuffer();
@@ -283,7 +884,7 @@ namespace ProDAQConfig
                 {
                     if (_serialPort == null || !_serialPort.IsOpen)
                     {
-                        throw new InvalidOperationException("El puerto no est� abierto");
+                        throw new InvalidOperationException("El puerto no está abierto");
                     }
 
                     _serialPort.DiscardInBuffer();
@@ -304,7 +905,7 @@ namespace ProDAQConfig
 
                     if (buffer[2] != '\r')
                     {
-                        throw new InvalidOperationException("Respuesta RS inv�lida (sin terminador)");
+                        throw new InvalidOperationException("Respuesta RS inválida (sin terminador)");
                     }
 
                     return (buffer[0], buffer[1]);
@@ -319,11 +920,11 @@ namespace ProDAQConfig
                 "Motor",
                 "Compresor",
                 "FCI",
-                "Tracci�n",
+                "Tracción",
                 "FCS",
                 "Seta",
                 "Cero",
-                "C�lula"
+                "Célula"
             };
 
             var activeAlarms = new List<string>();
@@ -335,15 +936,31 @@ namespace ProDAQConfig
                 }
             }
 
+            AlarmMotorActive = (alarmByte & (1 << 0)) != 0;
+            AlarmCompresorActive = (alarmByte & (1 << 1)) != 0;
+            AlarmFCIActive = (alarmByte & (1 << 2)) != 0;
+            AlarmTraccionActive = (alarmByte & (1 << 3)) != 0;
+            AlarmFCSActive = (alarmByte & (1 << 4)) != 0;
+            AlarmSetaActive = (alarmByte & (1 << 5)) != 0;
+            AlarmCeroActive = (alarmByte & (1 << 6)) != 0;
+            AlarmCelulaActive = (alarmByte & (1 << 7)) != 0;
+
+            ActiveAlarmCount = activeAlarms.Count;
+            HasActiveAlarms = ActiveAlarmCount > 0;
+
             var alarmText = activeAlarms.Count > 0
                 ? $"Alarmas: {string.Join(", ", activeAlarms)}"
                 : "Sin alarmas";
 
+            StatusUpDownOn = (statusByte & (1 << 0)) != 0;
+            StatusStopOn = (statusByte & (1 << 1)) != 0;
+            StatusRemoteOn = (statusByte & (1 << 2)) != 0;
+
             var statusDescriptions = new[]
             {
-                ($"Up/Down", 0),
-                ($"Stop", 1),
-                ($"Remoto", 2)
+                ("Up/Down", 0),
+                ("Stop", 1),
+                ("Remoto", 2)
             };
 
             var statusParts = new List<string>();
@@ -357,7 +974,6 @@ namespace ProDAQConfig
 
             return $"{alarmText} | {statusText}";
         }
-
 
         private async void ApplyOffsetButton_Click(object sender, RoutedEventArgs e)
         {
@@ -375,13 +991,13 @@ namespace ProDAQConfig
             try
             {
                 var formattedValue = OffsetValue.ToString("F3", CultureInfo.InvariantCulture);
-                var command = $"WO {formattedValue}"; // Comando de ejemplo para ajustar offset
+                var command = $"WP02{formattedValue}";
                 await Task.Run(() =>
                 {
                     lock (_serialLock)
                     {
                         _serialPort.WriteLine(command);
-                        _serialPort.ReadLine(); // se asume eco o confirmaci�n
+                        _serialPort.ReadLine();
                     }
                 });
 
@@ -407,6 +1023,290 @@ namespace ProDAQConfig
         private void OnPropertyChanged(string propertyName)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private void ParseEncoderReading(string encoderResponse)
+        {
+            if (TryParseDouble(encoderResponse, out var millimeters))
+            {
+                _lastEncoderValueMm = millimeters;
+                var adjusted = millimeters - (_encoderZeroReference ?? 0.0);
+                // AHORA SIN "mm", la unidad la añade el XAML
+                EncoderReading = $"{adjusted:F3}";
+            }
+            else
+            {
+                _lastEncoderValueMm = null;
+                EncoderReading = encoderResponse;
+            }
+        }
+
+        private async void ApplyEncoderGainButton_Click(object sender, RoutedEventArgs e)
+        {
+            await ApplyEncoderGainAsync();
+        }
+
+        private void UpdateForceReading(string forceResponse)
+        {
+            if (TryParseDouble(forceResponse, out var force))
+            {
+                _lastForceValue = force;
+                var adjusted = force - (_forceZeroReference ?? 0.0);
+                ForceReading = $"{adjusted:F3}";
+            }
+            else
+            {
+                _lastForceValue = null;
+                ForceReading = forceResponse;
+            }
+        }
+
+        private void UpdateVoltageReading(string voltageResponse)
+        {
+            if (TryParseDouble(voltageResponse, out var voltage))
+            {
+                VoltageReading = $"{voltage:F4}";
+            }
+            else
+            {
+                VoltageReading = voltageResponse;
+            }
+        }
+
+        private async void ZeroForceButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_serialPort == null || !IsConnected)
+            {
+                StatusMessage = "Debe conectarse a un puerto antes de poner a cero la fuerza";
+                return;
+            }
+
+            if (!_lastForceValue.HasValue)
+            {
+                StatusMessage = "No hay lectura de fuerza válida para poner a cero";
+                return;
+            }
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    lock (_serialLock)
+                    {
+                        _serialPort.WriteLine("WZ");
+                        _serialPort.ReadLine();
+                    }
+                });
+
+                _forceZeroReference = null;
+                ForceReading = $"{0.0:F3}";
+                StatusMessage = "Cero de fuerza solicitado al kernel";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error al solicitar cero de fuerza: {ex.Message}";
+            }
+        }
+
+        private void SetManualControlState(ManualControlState state)
+        {
+            IsManualUpActive = state == ManualControlState.Up;
+            IsManualDownActive = state == ManualControlState.Down;
+            IsManualStopActive = state == ManualControlState.Stop;
+        }
+
+        private void ZeroEncoderButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_lastEncoderValueMm.HasValue)
+            {
+                _encoderZeroReference = _lastEncoderValueMm.Value;
+                EncoderReading = $"{0.0:F3}";
+                StatusMessage = "Cero de encoder aplicado";
+            }
+            else
+            {
+                StatusMessage = "No hay lectura de encoder válida para poner a cero";
+            }
+        }
+
+        private static bool TryParseDouble(string input, out double value)
+        {
+            return double.TryParse(input, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+        }
+
+        private async Task ApplyEncoderGainAsync()
+        {
+            if (_serialPort == null || !IsConnected)
+            {
+                StatusMessage = "Debe conectarse a un puerto antes de aplicar la ganancia";
+                return;
+            }
+
+            if (EncoderGain <= 0)
+            {
+                StatusMessage = "La ganancia debe ser mayor a cero";
+                return;
+            }
+
+            try
+            {
+                var formattedValue = EncoderGain.ToString("F4", CultureInfo.InvariantCulture);
+                var command = $"WP01{formattedValue}";
+                await Task.Run(() =>
+                {
+                    lock (_serialLock)
+                    {
+                        _serialPort.WriteLine(command);
+                        _serialPort.ReadLine();
+                    }
+                });
+
+                StatusMessage = $"Ganancia aplicada: {EncoderGain:F4} pasos/mm";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error aplicando ganancia: {ex.Message}";
+            }
+        }
+
+        private async void ApplyEncoderPolarityButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            await ApplyEncoderPolarityAsync();
+        }
+
+        private async Task ApplyEncoderPolarityAsync()
+        {
+            if (_serialPort == null || !IsConnected)
+            {
+                StatusMessage = "Debe conectarse a un puerto antes de aplicar la polaridad";
+                return;
+            }
+
+            var targetPolarity = IsEncoderInverted ? -1 : 1;
+
+            try
+            {
+                var command = $"WP03{targetPolarity}";
+                await Task.Run(() =>
+                {
+                    lock (_serialLock)
+                    {
+                        _serialPort.WriteLine(command);
+                        _serialPort.ReadLine();
+                    }
+                });
+
+                StatusMessage = IsEncoderInverted
+                    ? "Polaridad del encoder configurada como invertida"
+                    : "Polaridad del encoder configurada como normal";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error aplicando polaridad: {ex.Message}";
+            }
+        }
+
+        private async void ApplySpeedSetpointButton_Click(object sender, RoutedEventArgs e)
+        {
+            await ApplySpeedSetpointAsync();
+        }
+
+        private async Task<bool> ApplySpeedSetpointAsync(bool updateStatusMessage = true)
+        {
+            if (_serialPort == null || !IsConnected)
+            {
+                StatusMessage = "Debe conectarse a un puerto antes de enviar la consigna de velocidad";
+                return false;
+            }
+
+            var targetSpeed = SpeedSetpoint;
+
+            if (targetSpeed < 0)
+            {
+                StatusMessage = "La velocidad no puede ser negativa";
+                return false;
+            }
+
+            try
+            {
+                var formattedValue = targetSpeed.ToString("F1", CultureInfo.InvariantCulture);
+                var command = $"WV{formattedValue}";
+                await Task.Run(() =>
+                {
+                    lock (_serialLock)
+                    {
+                        _serialPort.WriteLine(command);
+                        _serialPort.ReadLine();
+                    }
+                });
+
+                if (updateStatusMessage)
+                {
+                    StatusMessage = $"Consigna de velocidad enviada: {targetSpeed:F1} mm/min";
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error al enviar la consigna: {ex.Message}";
+                return false;
+            }
+        }
+
+        private async void MoveUpButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!await ApplySpeedSetpointAsync(false))
+            {
+                return;
+            }
+
+            await SendMachineCommandAsync("WF", "Comando SUBIR enviado", "enviar comando SUBIR", ManualControlState.Up);
+        }
+
+        private async void MoveDownButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (!await ApplySpeedSetpointAsync(false))
+            {
+                return;
+            }
+
+            await SendMachineCommandAsync("WR", "Comando BAJAR enviado", "enviar comando BAJAR", ManualControlState.Down);
+        }
+
+        private async void StopButton_Click(object sender, RoutedEventArgs e)
+        {
+            await SendMachineCommandAsync("WS", "Comando PARAR enviado", "enviar comando PARAR", ManualControlState.Stop);
+        }
+
+        private async Task SendMachineCommandAsync(string command, string successMessage, string errorAction, ManualControlState? manualState = null)
+        {
+            if (_serialPort == null || !IsConnected)
+            {
+                StatusMessage = "Debe conectarse a un puerto antes de enviar comandos de movimiento";
+                return;
+            }
+
+            try
+            {
+                await Task.Run(() =>
+                {
+                    lock (_serialLock)
+                    {
+                        _serialPort.WriteLine(command);
+                        _serialPort.ReadLine();
+                    }
+                });
+
+                StatusMessage = successMessage;
+                if (manualState.HasValue)
+                {
+                    SetManualControlState(manualState.Value);
+                }
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error al {errorAction}: {ex.Message}";
+            }
         }
     }
 }
