@@ -19,6 +19,7 @@
 #include "alarmas.h"
 #include "LTC2602.h"
 #include "modelo.h"
+#include "AD7175.h"
 
 #include "GestionComandos.h"
 #include "utilidades.h"
@@ -469,6 +470,16 @@ void CommandWO(float param1, float param2) {
         Serial.println(dacZeroOffsetVolts, 3);
 }
 
+void CommandWZ(float param1, float param2) {
+    int32_t result = AD7175_SystemZeroScaleCalibrate();
+
+    if (result == 0) {
+        Serial.println("OK");
+    } else {
+        Serial.println("ERR");
+    }
+}
+
 void CommandROffset(float param1, float param2) {
         Serial.println(dacZeroOffsetVolts, 3);
 }
@@ -600,6 +611,7 @@ ComandoMap comandoMaps[] = {
         {"RH", CommandRH, 26}, // Ensayo en curso ?
         {"WB", CommandRS, 27}, // Alarma baja velo
         {"WT", CommandWT, 28},
+        {"WZ", CommandWZ, 31}, // Cero de fuerza vía kernel
     {NULL, NULL, -1} // Marca el fin de la lista
 };
 
