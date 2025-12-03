@@ -159,7 +159,8 @@ void SensorUpdateLoop() {
 
     // Publicar datos de sensor de forma atómica.
     sensorDataMutex.lock();
-    sensorData.fuerza    = ultimaFuerzaLeida;//AD7175_Voltage(raw);  // AHORA sí en Newtons
+    sensorData.fuerza    = ultimaFuerzaLeida;
+    sensorData.voltaje  = AD7175_Voltage(raw);
     sensorData.extension = extensionMm;
     sensorData.extension = raw;
     sensorData.estado    = estadoCombinado;
