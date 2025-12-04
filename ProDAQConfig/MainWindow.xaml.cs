@@ -1174,6 +1174,22 @@ namespace ProDAQConfig
             await ApplyEncoderPolarityAsync();
         }
 
+        private void ManageCellConfigButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            if (_serialPort == null || !IsConnected)
+            {
+                StatusMessage = "Debe conectarse a un puerto antes de gestionar CellConfig.";
+                return;
+            }
+
+            var window = new CellConfigWindow(QueryDeviceAsync)
+            {
+                Owner = this
+            };
+
+            window.ShowDialog();
+        }
+
         private async Task ApplyEncoderPolarityAsync()
         {
             if (_serialPort == null || !IsConnected)

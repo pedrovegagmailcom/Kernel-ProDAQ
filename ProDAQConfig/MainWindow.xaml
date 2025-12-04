@@ -585,6 +585,18 @@
                                 Margin="8,0,0,0"
                                 Click="ApplyEncoderPolarityButton_OnClick"/>
                     </StackPanel>
+
+                    <Separator Margin="0,8,0,8" Background="{StaticResource CardBorderBrush}" Height="1"/>
+
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="Célula de carga"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,8,0"/>
+                        <Button Content="Abrir CellConfig"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Click="ManageCellConfigButton_OnClick"/>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
