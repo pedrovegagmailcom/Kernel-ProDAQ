@@ -693,6 +693,8 @@ void imprimirCellConfig(const CellConfig& cfg) {
     Serial.println(cfg.overload_c);
 }
 
+bool VerificarFormato(const char* Buf, uint32_t Len);
+
 bool extraerPayloadCellConfig(const uint8_t* Buf, uint32_t Len, char* destino, size_t destinoSize) {
     if (!VerificarFormato(reinterpret_cast<const char*>(Buf), Len) || destinoSize == 0) {
         return false;
