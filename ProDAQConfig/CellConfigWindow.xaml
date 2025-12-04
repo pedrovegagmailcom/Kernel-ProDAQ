@@ -1,0 +1,190 @@
+<Window x:Class="ProDAQConfig.CellConfigWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ProDAQConfig"
+        Title="Configuración de célula"
+        Width="720"
+        Height="620"
+        ResizeMode="CanResize"
+        WindowStartupLocation="CenterOwner"
+        Background="#0B1120"
+        FontFamily="Segoe UI"
+        FontSize="12">
+    <Window.Resources>
+        <local:BooleanInverseConverter x:Key="BooleanInverseConverter" />
+    </Window.Resources>
+    <Border Margin="12"
+            Padding="12"
+            Background="#111827"
+            BorderBrush="#1F2937"
+            BorderThickness="1"
+            CornerRadius="8">
+        <DockPanel>
+            <StackPanel DockPanel.Dock="Bottom" Margin="0,12,0,0">
+                <TextBlock Text="{Binding StatusMessage}" Foreground="#9CA3AF" Margin="0,0,0,6"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Leer del kernel"
+                            Width="130"
+                            Margin="0,0,6,0"
+                            Click="LoadButton_OnClick"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource BooleanInverseConverter}}"/>
+                    <Button Content="Guardar en kernel"
+                            Width="150"
+                            Margin="0,0,6,0"
+                            Click="SaveButton_OnClick"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource BooleanInverseConverter}}"/>
+                    <Button Content="Cerrar"
+                            Width="90"
+                            Click="CloseButton_OnClick"
+                            IsEnabled="{Binding IsBusy, Converter={StaticResource BooleanInverseConverter}}"/>
+                </StackPanel>
+            </StackPanel>
+
+            <StackPanel>
+                <TextBlock Text="Gestión de CellConfig"
+                           Foreground="#F9FAFB"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Margin="0,0,0,12"/>
+                <TextBlock Text="Permite leer y escribir la configuración almacenada en el kernel. Los polinomios se muestran en bloques independientes para tracción y compresión."
+                           TextWrapping="Wrap"
+                           Foreground="#9CA3AF"
+                           Margin="0,0,0,16"/>
+
+                <Border Background="#0F172A"
+                        BorderBrush="#1F2937"
+                        BorderThickness="1"
+                        CornerRadius="6"
+                        Padding="12"
+                        Margin="0,0,0,10">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Column="0" Margin="0,0,8,0">
+                            <TextBlock Text="Número de serie (10 caracteres)"
+                                       Foreground="#9CA3AF"/>
+                            <TextBox Text="{Binding Config.SerialNumber, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     MaxLength="10"
+                                     Margin="0,4,0,8"/>
+
+                            <TextBlock Text="Capacidad (kg)"
+                                       Foreground="#9CA3AF"/>
+                            <TextBox Text="{Binding Config.Capacidad, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     Margin="0,4,0,8"/>
+
+                            <TextBlock Text="Límite (kg)"
+                                       Foreground="#9CA3AF"/>
+                            <TextBox Text="{Binding Config.Limite, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     Margin="0,4,0,8"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                            <TextBlock Text="Resolución"
+                                       Foreground="#9CA3AF"/>
+                            <TextBox Text="{Binding Config.Resolucion, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,8"/>
+
+                            <TextBlock Text="Overload tracción (%)"
+                                       Foreground="#9CA3AF"/>
+                            <TextBox Text="{Binding Config.OverloadT, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     Margin="0,4,0,8"/>
+
+                            <TextBlock Text="Overload compresión (%)"
+                                       Foreground="#9CA3AF"/>
+                            <TextBox Text="{Binding Config.OverloadC, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0"
+                            Background="#0F172A"
+                            BorderBrush="#1F2937"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12"
+                            Margin="0,0,6,0">
+                        <StackPanel>
+                            <TextBlock Text="Polinomio de tracción"
+                                       Foreground="#F9FAFB"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,6"/>
+                            <TextBlock Text="Coeficientes x1t..x4t"
+                                       Foreground="#9CA3AF"
+                                       Margin="0,0,0,8"/>
+
+                            <UniformGrid Columns="2" Rows="2" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                                <StackPanel Margin="0,0,8,8">
+                                    <TextBlock Text="x1t" Foreground="#9CA3AF"/>
+                                    <TextBox Text="{Binding Config.X1T, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,0,8">
+                                    <TextBlock Text="x2t" Foreground="#9CA3AF"/>
+                                    <TextBox Text="{Binding Config.X2T, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,0">
+                                    <TextBlock Text="x3t" Foreground="#9CA3AF"/>
+                                    <TextBox Text="{Binding Config.X3T, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="x4t" Foreground="#9CA3AF"/>
+                                    <TextBox Text="{Binding Config.X4T, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="1"
+                            Background="#0F172A"
+                            BorderBrush="#1F2937"
+                            BorderThickness="1"
+                            CornerRadius="6"
+                            Padding="12"
+                            Margin="6,0,0,0">
+                        <StackPanel>
+                            <TextBlock Text="Polinomio de compresión"
+                                       Foreground="#F9FAFB"
+                                       FontWeight="SemiBold"
+                                       Margin="0,0,0,6"/>
+                            <TextBlock Text="Coeficientes x1c..x4c"
+                                       Foreground="#9CA3AF"
+                                       Margin="0,0,0,8"/>
+
+                            <UniformGrid Columns="2" Rows="2" Margin="0,4,0,0" HorizontalAlignment="Stretch">
+                                <StackPanel Margin="0,0,8,8">
+                                    <TextBlock Text="x1c" Foreground="#9CA3AF"/>
+                                    <TextBox Text="{Binding Config.X1C, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,0,8">
+                                    <TextBlock Text="x2c" Foreground="#9CA3AF"/>
+                                    <TextBox Text="{Binding Config.X2C, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,8,0">
+                                    <TextBlock Text="x3c" Foreground="#9CA3AF"/>
+                                    <TextBox Text="{Binding Config.X3C, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock Text="x4c" Foreground="#9CA3AF"/>
+                                    <TextBox Text="{Binding Config.X4C, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                </StackPanel>
+                            </UniformGrid>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </StackPanel>
+        </DockPanel>
+    </Border>
+</Window>
