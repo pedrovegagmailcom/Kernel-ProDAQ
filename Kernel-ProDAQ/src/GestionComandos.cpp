@@ -25,6 +25,7 @@
 #include "utilidades.h"
 #include "tramos.h"
 #include "almacenamiento.h"
+#include "Eeprom24LC08.h"
 
 typedef enum {
     PROTOCOLO_NUEVO,
@@ -46,6 +47,11 @@ extern rtos::Mutex sensorDataMutex;
 
 static float encoderStepsPerMillimeter = 1.0f;
 static int32_t encoderPolaritySign     = 1;
+static constexpr uint16_t CELL_CONFIG_EEADDR = 0;
+
+static Eeprom24LC08 eeprom24lc08;
+static CellConfig   cellConfigCache{};
+static bool         cellConfigLoaded = false;
 
 namespace {
 
@@ -344,6 +350,7 @@ float convertirContadorAMilimetros(long valor) {
 }
 
 void InicializarConfiguracion() {
+    eeprom24lc08.begin();
     cargarConfiguracionFlash();
 }
 
@@ -573,6 +580,144 @@ void CommandWT(float param1, float param2) {
         Serial.println("");
 }
 
+bool cargarCellConfigDesdeEeprom(CellConfig& destino) {
+    eeprom24lc08.readStruct(CELL_CONFIG_EEADDR, destino);
+    return true;
+}
+
+bool guardarCellConfigEnEeprom(const CellConfig& origen) {
+    eeprom24lc08.writeStruct(CELL_CONFIG_EEADDR, origen);
+    return true;
+}
+
+bool parseCellConfigString(const char* payload, CellConfig& destino) {
+    if (payload == nullptr) {
+        return false;
+    }
+
+    char buffer[200];
+    strncpy(buffer, payload, sizeof(buffer) - 1);
+    buffer[sizeof(buffer) - 1] = '\0';
+
+    char* token     = strtok(buffer, ",");
+    int   fieldIndex = 0;
+
+    while (token != nullptr) {
+        switch (fieldIndex) {
+            case 0: {
+                memset(destino.numeroserie, 0, sizeof(destino.numeroserie));
+                strncpy(destino.numeroserie, token, sizeof(destino.numeroserie));
+                break;
+            }
+            case 1:
+                destino.capacidad = static_cast<uint16_t>(strtoul(token, nullptr, 10));
+                break;
+            case 2:
+                destino.limite = static_cast<uint16_t>(strtoul(token, nullptr, 10));
+                break;
+            case 3:
+                destino.resolucion = strtof(token, nullptr);
+                break;
+            case 4:
+                destino.x1t = strtof(token, nullptr);
+                break;
+            case 5:
+                destino.x2t = strtof(token, nullptr);
+                break;
+            case 6:
+                destino.x3t = strtof(token, nullptr);
+                break;
+            case 7:
+                destino.x4t = strtof(token, nullptr);
+                break;
+            case 8:
+                destino.x1c = strtof(token, nullptr);
+                break;
+            case 9:
+                destino.x2c = strtof(token, nullptr);
+                break;
+            case 10:
+                destino.x3c = strtof(token, nullptr);
+                break;
+            case 11:
+                destino.x4c = strtof(token, nullptr);
+                break;
+            case 12:
+                destino.overload_t = static_cast<uint16_t>(strtoul(token, nullptr, 10));
+                break;
+            case 13:
+                destino.overload_c = static_cast<uint16_t>(strtoul(token, nullptr, 10));
+                break;
+            default:
+                return false;
+        }
+
+        ++fieldIndex;
+        token = strtok(nullptr, ",");
+    }
+
+    return fieldIndex == 14;
+}
+
+void imprimirCellConfig(const CellConfig& cfg) {
+    char serialBuffer[11];
+    memcpy(serialBuffer, cfg.numeroserie, sizeof(cfg.numeroserie));
+    serialBuffer[sizeof(serialBuffer) - 1] = '\0';
+
+    Serial.print(serialBuffer);
+    Serial.print(',');
+    Serial.print(cfg.capacidad);
+    Serial.print(',');
+    Serial.print(cfg.limite);
+    Serial.print(',');
+    Serial.print(cfg.resolucion, 6);
+    Serial.print(',');
+    Serial.print(cfg.x1t, 6);
+    Serial.print(',');
+    Serial.print(cfg.x2t, 6);
+    Serial.print(',');
+    Serial.print(cfg.x3t, 6);
+    Serial.print(',');
+    Serial.print(cfg.x4t, 6);
+    Serial.print(',');
+    Serial.print(cfg.x1c, 6);
+    Serial.print(',');
+    Serial.print(cfg.x2c, 6);
+    Serial.print(',');
+    Serial.print(cfg.x3c, 6);
+    Serial.print(',');
+    Serial.print(cfg.x4c, 6);
+    Serial.print(',');
+    Serial.print(cfg.overload_t);
+    Serial.print(',');
+    Serial.println(cfg.overload_c);
+}
+
+bool VerificarFormato(const char* Buf, uint32_t Len);
+
+bool extraerPayloadCellConfig(const uint8_t* Buf, uint32_t Len, char* destino, size_t destinoSize) {
+    if (!VerificarFormato(reinterpret_cast<const char*>(Buf), Len) || destinoSize == 0) {
+        return false;
+    }
+
+    const uint32_t payloadStart = 4;             // | + comando (2) + |
+    const uint32_t payloadEnd   = Len > 2 ? Len - 2 : 0;  // Índice del primer '|' final
+
+    if (payloadEnd <= payloadStart) {
+        destino[0] = '\0';
+        return true;
+    }
+
+    uint32_t payloadLength = payloadEnd - payloadStart;
+    if (payloadLength >= destinoSize) {
+        payloadLength = destinoSize - 1;
+    }
+
+    memcpy(destino, Buf + payloadStart, payloadLength);
+    destino[payloadLength] = '\0';
+    return true;
+}
+
 
 ComandoMap comandoMaps[] = {
     {"WF", CommandWF, 0},
@@ -674,6 +819,35 @@ bool AnalizarComando(char* Buf, uint32_t Len, char* comando, float* param1, floa
 }
 
 bool ProcesarComandoNuevo(uint8_t* Buf, uint32_t Len) {
+    if (Len >= 4 && Buf[0] == '|' && Buf[1] == 'C') {
+        if (Buf[2] == 'R') {
+            if (!cellConfigLoaded) {
+                cargarCellConfigDesdeEeprom(cellConfigCache);
+                cellConfigLoaded = true;
+            }
+            imprimirCellConfig(cellConfigCache);
+            return true;
+        } else if (Buf[2] == 'W') {
+            char payload[200];
+            if (!extraerPayloadCellConfig(Buf, Len, payload, sizeof(payload))) {
+                Serial.println("ERR");
+                return true;
+            }
+
+            CellConfig nueva{};
+            if (!parseCellConfigString(payload, nueva)) {
+                Serial.println("ERR");
+                return true;
+            }
+
+            guardarCellConfigEnEeprom(nueva);
+            cellConfigCache  = nueva;
+            cellConfigLoaded = true;
+            Serial.println("OK");
+            return true;
+        }
+    }
+
     char comando[CMD_LENGTH + 1];
     float param1, param2;
     if (AnalizarComando((char*)Buf, Len, comando, &param1, &param2)) {
