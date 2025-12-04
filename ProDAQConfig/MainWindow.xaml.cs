@@ -59,6 +59,8 @@ namespace ProDAQConfig
         private bool _alarmCeroActive;
         private bool _alarmCelulaActive;
 
+        private CellConfigWindow _cellConfigWindow;
+
         // Resumen
         private int _activeAlarmCount;
         private bool _hasActiveAlarms;
@@ -876,6 +878,47 @@ namespace ProDAQConfig
             });
         }
 
+        public Task<string> ReadCellConfigAsync()
+        {
+            return Task.Run(() =>
+            {
+                lock (_serialLock)
+                {
+                    if (_serialPort == null || !_serialPort.IsOpen)
+                    {
+                        throw new InvalidOperationException("El puerto no está abierto");
+                    }
+
+                    _serialPort.DiscardInBuffer();
+                    _serialPort.WriteLine("|CR||");
+                    return _serialPort.ReadLine()?.Trim() ?? string.Empty;
+                }
+            });
+        }
+
+        public Task<string> WriteCellConfigAsync(string payload)
+        {
+            if (string.IsNullOrWhiteSpace(payload))
+            {
+                throw new ArgumentException("El payload de CellConfig no puede estar vacío", nameof(payload));
+            }
+
+            return Task.Run(() =>
+            {
+                lock (_serialLock)
+                {
+                    if (_serialPort == null || !_serialPort.IsOpen)
+                    {
+                        throw new InvalidOperationException("El puerto no está abierto");
+                    }
+
+                    _serialPort.DiscardInBuffer();
+                    _serialPort.WriteLine($"|CW|{payload}||");
+                    return _serialPort.ReadLine()?.Trim() ?? string.Empty;
+                }
+            });
+        }
+
         private Task<(byte alarmByte, byte statusByte)> QueryAlarmBytesAsync()
         {
             return Task.Run(() =>
@@ -1276,6 +1319,23 @@ namespace ProDAQConfig
         private async void StopButton_Click(object sender, RoutedEventArgs e)
         {
             await SendMachineCommandAsync("WS", "Comando PARAR enviado", "enviar comando PARAR", ManualControlState.Stop);
+        }
+
+        private void OpenCellConfigWindow_OnClick(object sender, RoutedEventArgs e)
+        {
+            if (_cellConfigWindow == null || !_cellConfigWindow.IsLoaded)
+            {
+                _cellConfigWindow = new CellConfigWindow(this);
+                _cellConfigWindow.Closed += (_, _) => _cellConfigWindow = null;
+            }
+
+            _cellConfigWindow.Show();
+            _cellConfigWindow.Activate();
+
+            if (!IsConnected)
+            {
+                StatusMessage = "Abra la conexión para leer o grabar CellConfig.";
+            }
         }
 
         private async Task SendMachineCommandAsync(string command, string successMessage, string errorAction, ManualControlState? manualState = null)

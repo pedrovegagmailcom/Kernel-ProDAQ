@@ -644,17 +644,34 @@
                 </StackPanel>
             </Border>
 
-            <!-- Botón lecturas manuales -->
-            <Border Grid.Row="2" Grid.Column="1" Style="{StaticResource CardBorderStyle}">
-                <StackPanel>
-                    <TextBlock Text="Lecturas"
-                               Style="{StaticResource SectionTitleTextStyle}"/>
-                    <Button Content="Actualizar lecturas"
-                            Style="{StaticResource SecondaryButtonStyle}"
-                            Width="160"
-                            Click="ReadTelemetryButton_Click"/>
-                </StackPanel>
-            </Border>
+            <!-- Acciones rápidas -->
+            <StackPanel Grid.Row="2" Grid.Column="1">
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <StackPanel>
+                        <TextBlock Text="Lecturas"
+                                   Style="{StaticResource SectionTitleTextStyle}"/>
+                        <Button Content="Actualizar lecturas"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Width="160"
+                                Click="ReadTelemetryButton_Click"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource CardBorderStyle}">
+                    <StackPanel>
+                        <TextBlock Text="Configuración de célula"
+                                   Style="{StaticResource SectionTitleTextStyle}"/>
+                        <TextBlock Text="Leer y grabar la estructura CellConfig almacenada en el kernel"
+                                   Foreground="{StaticResource TextSecondaryBrush}"
+                                   TextWrapping="Wrap"
+                                   Margin="0,0,0,6"/>
+                        <Button Content="Abrir gestor"
+                                Style="{StaticResource PrimaryButtonStyle}"
+                                Width="140"
+                                Click="OpenCellConfigWindow_OnClick"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
         </Grid>
 
         <!-- BARRA INFERIOR -->
