@@ -110,7 +110,7 @@ namespace ProDAQConfig
             try
             {
                 StatusMessage = "Enviando configuración al kernel...";
-                var command = $"WP04 {hexString}";
+                var command = $"WP04{hexString}";
                 var response = await _sendCommandAsync(command);
 
                 if (!string.Equals(response, "OK", StringComparison.OrdinalIgnoreCase))

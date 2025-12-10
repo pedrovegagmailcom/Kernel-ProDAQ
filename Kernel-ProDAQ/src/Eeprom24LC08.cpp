@@ -17,7 +17,7 @@ uint8_t Eeprom24LC08::writeChunk(uint16_t eeAddress, const uint8_t* data, uint8_
     uint8_t wordAddr = eeAddress & 0xFF;  // 0..255 dentro del bloque
 
     // No cruzar límite de bloque (256 bytes)
-    uint8_t blockRemaining = 256 - wordAddr;
+    uint16_t blockRemaining = 256 - wordAddr;
     if (length > blockRemaining) {
         length = blockRemaining;
     }
@@ -34,7 +34,7 @@ uint8_t Eeprom24LC08::writeChunk(uint16_t eeAddress, const uint8_t* data, uint8_
     for (uint8_t i = 0; i < length; i++) {
         Wire.write(data[i]);
     }
-    Wire.endTransmission();
+    uint8_t err = Wire.endTransmission();
 
     return length;
 }
@@ -50,14 +50,14 @@ uint8_t Eeprom24LC08::readChunk(uint16_t eeAddress, uint8_t* data, uint8_t lengt
     uint8_t wordAddr = eeAddress & 0xFF;
 
     // No cruzar límite de bloque
-    uint8_t blockRemaining = 256 - wordAddr;
+    uint16_t blockRemaining = 256 - wordAddr;
     if (length > blockRemaining) {
         length = blockRemaining;
     }
 
     Wire.beginTransmission(devAddr);
     Wire.write(wordAddr);
-    Wire.endTransmission();
+    uint8_t err = Wire.endTransmission();
 
     Wire.requestFrom((int)devAddr, (int)length);
 

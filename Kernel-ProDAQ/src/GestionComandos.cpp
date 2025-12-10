@@ -377,7 +377,8 @@ bool procesarEscrituraConfiguracion(ConfigParameter parameter, const char* value
                 return false;
             }
 
-            Serial.println("OK");
+            Serial.print("OK");
+            Serial.write(13);
             return true;
         }
         default:
@@ -786,7 +787,7 @@ bool ProcesarComandoNuevo(uint8_t* Buf, uint32_t Len) {
 // Formato: 2 caracteres a los que puede seguir un número y siempre termina en "\r"
 // Ejemplos: "WF\r" o "WV1000\r" (donde WV modifica la velocidad a 1000mm/min)
 bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len) {
-    char mensaje[100];
+    char mensaje[200];
 
 
     if (Len >= sizeof(mensaje))
