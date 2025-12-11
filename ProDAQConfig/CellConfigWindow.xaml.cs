@@ -158,15 +158,15 @@ namespace ProDAQConfig
         private string _serialNumber = string.Empty;
         private int _capacidad;
         private int _limite;
-        private double _resolucion;
-        private double _x1T;
-        private double _x2T;
-        private double _x3T;
-        private double _x4T;
-        private double _x1C;
-        private double _x2C;
-        private double _x3C;
-        private double _x4C;
+        private float _resolucion;
+        private float _x1T;
+        private float _x2T;
+        private float _x3T;
+        private float _x4T;
+        private float _x1C;
+        private float _x2C;
+        private float _x3C;
+        private float _x4C;
         private int _overloadT;
         private int _overloadC;
 
@@ -211,7 +211,7 @@ namespace ProDAQConfig
             }
         }
 
-        public double Resolucion
+        public float Resolucion
         {
             get => _resolucion;
             set
@@ -224,7 +224,7 @@ namespace ProDAQConfig
             }
         }
 
-        public double X1T
+        public float X1T
         {
             get => _x1T;
             set
@@ -237,7 +237,7 @@ namespace ProDAQConfig
             }
         }
 
-        public double X2T
+        public float X2T
         {
             get => _x2T;
             set
@@ -250,7 +250,7 @@ namespace ProDAQConfig
             }
         }
 
-        public double X3T
+        public float X3T
         {
             get => _x3T;
             set
@@ -263,7 +263,7 @@ namespace ProDAQConfig
             }
         }
 
-        public double X4T
+        public float X4T
         {
             get => _x4T;
             set
@@ -276,7 +276,7 @@ namespace ProDAQConfig
             }
         }
 
-        public double X1C
+        public float X1C
         {
             get => _x1C;
             set
@@ -289,7 +289,7 @@ namespace ProDAQConfig
             }
         }
 
-        public double X2C
+        public float X2C
         {
             get => _x2C;
             set
@@ -302,7 +302,7 @@ namespace ProDAQConfig
             }
         }
 
-        public double X3C
+        public float X3C
         {
             get => _x3C;
             set
@@ -315,7 +315,7 @@ namespace ProDAQConfig
             }
         }
 
-        public double X4C
+        public float X4C
         {
             get => _x4C;
             set
