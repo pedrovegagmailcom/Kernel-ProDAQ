@@ -12,6 +12,7 @@
         FontSize="12">
     <Window.Resources>
         <local:BooleanInverseConverter x:Key="BooleanInverseConverter" />
+        <local:FlexibleDoubleConverter x:Key="FlexibleDoubleConverter" />
     </Window.Resources>
     <Border Margin="12"
             Padding="12"
@@ -89,7 +90,8 @@
                         <StackPanel Grid.Column="1" Margin="8,0,0,0">
                             <TextBlock Text="Resolución"
                                        Foreground="#9CA3AF"/>
-                            <TextBox Text="{Binding Config.Resolucion, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,8"/>
+                            <TextBox Text="{Binding Config.Resolucion, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource FlexibleDoubleConverter}}"
+                                     Margin="0,4,0,8"/>
 
                             <TextBlock Text="Overload tracción (%)"
                                        Foreground="#9CA3AF"/>
@@ -129,19 +131,19 @@
                             <UniformGrid Columns="2" Rows="2" Margin="0,4,0,0" HorizontalAlignment="Stretch">
                                 <StackPanel Margin="0,0,8,8">
                                     <TextBlock Text="x1t" Foreground="#9CA3AF"/>
-                                    <TextBox Text="{Binding Config.X1T, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Text="{Binding Config.X1T, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource FlexibleDoubleConverter}}" />
                                 </StackPanel>
                                 <StackPanel Margin="0,0,0,8">
                                     <TextBlock Text="x2t" Foreground="#9CA3AF"/>
-                                    <TextBox Text="{Binding Config.X2T, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Text="{Binding Config.X2T, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource FlexibleDoubleConverter}}" />
                                 </StackPanel>
                                 <StackPanel Margin="0,0,8,0">
                                     <TextBlock Text="x3t" Foreground="#9CA3AF"/>
-                                    <TextBox Text="{Binding Config.X3T, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Text="{Binding Config.X3T, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource FlexibleDoubleConverter}}" />
                                 </StackPanel>
                                 <StackPanel>
                                     <TextBlock Text="x4t" Foreground="#9CA3AF"/>
-                                    <TextBox Text="{Binding Config.X4T, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Text="{Binding Config.X4T, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource FlexibleDoubleConverter}}" />
                                 </StackPanel>
                             </UniformGrid>
                         </StackPanel>
@@ -166,19 +168,19 @@
                             <UniformGrid Columns="2" Rows="2" Margin="0,4,0,0" HorizontalAlignment="Stretch">
                                 <StackPanel Margin="0,0,8,8">
                                     <TextBlock Text="x1c" Foreground="#9CA3AF"/>
-                                    <TextBox Text="{Binding Config.X1C, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Text="{Binding Config.X1C, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource FlexibleDoubleConverter}}" />
                                 </StackPanel>
                                 <StackPanel Margin="0,0,0,8">
                                     <TextBlock Text="x2c" Foreground="#9CA3AF"/>
-                                    <TextBox Text="{Binding Config.X2C, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Text="{Binding Config.X2C, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource FlexibleDoubleConverter}}" />
                                 </StackPanel>
                                 <StackPanel Margin="0,0,8,0">
                                     <TextBlock Text="x3c" Foreground="#9CA3AF"/>
-                                    <TextBox Text="{Binding Config.X3C, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Text="{Binding Config.X3C, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource FlexibleDoubleConverter}}" />
                                 </StackPanel>
                                 <StackPanel>
                                     <TextBlock Text="x4c" Foreground="#9CA3AF"/>
-                                    <TextBox Text="{Binding Config.X4C, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBox Text="{Binding Config.X4C, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource FlexibleDoubleConverter}}" />
                                 </StackPanel>
                             </UniformGrid>
                         </StackPanel>
