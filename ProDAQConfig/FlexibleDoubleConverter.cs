@@ -15,7 +15,8 @@ namespace ProDAQConfig
 
             if (value is double doubleValue)
             {
-                return doubleValue.ToString(CultureInfo.InvariantCulture);
+                var formatCulture = culture ?? CultureInfo.CurrentCulture;
+                return doubleValue.ToString(formatCulture);
             }
 
             return value.ToString();
@@ -30,14 +31,27 @@ namespace ProDAQConfig
                 return 0d;
             }
 
-            if (double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out var currentCultureValue))
+            var parseCulture = culture ?? CultureInfo.CurrentCulture;
+            var decimalSeparator = parseCulture.NumberFormat.NumberDecimalSeparator;
+            var alternateSeparator = decimalSeparator == "," ? "." : ",";
+            var groupSeparator = parseCulture.NumberFormat.NumberGroupSeparator;
+
+            var normalized = text.Trim();
+            if (!string.IsNullOrEmpty(groupSeparator))
             {
-                return currentCultureValue;
+                normalized = normalized.Replace(groupSeparator, string.Empty);
             }
 
-            text = text.Replace(',', '.');
+            normalized = normalized.Replace(alternateSeparator, decimalSeparator);
 
-            if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var invariantValue))
+            if (double.TryParse(normalized, NumberStyles.Float, parseCulture, out var cultureValue))
+            {
+                return cultureValue;
+            }
+
+            normalized = normalized.Replace(decimalSeparator, ".");
+
+            if (double.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var invariantValue))
             {
                 return invariantValue;
             }
