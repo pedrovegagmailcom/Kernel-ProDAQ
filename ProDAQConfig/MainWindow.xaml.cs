@@ -845,11 +845,11 @@ namespace ProDAQConfig
             _suppressFineOffsetAutoApply = true;
             try
             {
-                var coarse = Math.Max(-1.0, Math.Min(1.0, offset));
+                var coarse = Math.Max(-0.2, Math.Min(0.2, offset));
                 CoarseOffsetValue = Math.Round(coarse, 3);
 
                 var remainder = offset - coarse;
-                FineOffsetAdjustment = Math.Round(Math.Max(-0.1, Math.Min(0.1, remainder)), 3);
+                FineOffsetAdjustment = Math.Round(Math.Max(-0.0001, Math.Min(0.0001, remainder)), 4);
             }
             finally
             {
@@ -1172,6 +1172,22 @@ namespace ProDAQConfig
         private async void ApplyEncoderPolarityButton_OnClick(object sender, RoutedEventArgs e)
         {
             await ApplyEncoderPolarityAsync();
+        }
+
+        private void ManageCellConfigButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            if (_serialPort == null || !IsConnected)
+            {
+                StatusMessage = "Debe conectarse a un puerto antes de gestionar CellConfig.";
+                return;
+            }
+
+            var window = new CellConfigWindow(QueryDeviceAsync)
+            {
+                Owner = this
+            };
+
+            window.ShowDialog();
         }
 
         private async Task ApplyEncoderPolarityAsync()

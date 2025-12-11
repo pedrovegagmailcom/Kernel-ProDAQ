@@ -13,6 +13,7 @@
 #include <string>
 #include <math.h>
 #include <rtos.h>
+#include <ctype.h>
 
 #include "LS7366.h"
 #include "IO.h"
@@ -20,6 +21,7 @@
 #include "LTC2602.h"
 #include "modelo.h"
 #include "AD7175.h"
+#include "cell_config.h"
 
 #include "GestionComandos.h"
 #include "utilidades.h"
@@ -70,6 +72,7 @@ enum class ConfigParameter : uint8_t {
     EncoderGain   = 1,
     DacOffset     = 2,
     EncoderPolarity = 3,
+    CellConfig    = 4,
 };
 
 constexpr uint32_t CONFIG_MAGIC = 0x43464732; // "CFG2"
@@ -209,6 +212,9 @@ bool tryParseConfigParameter(const char* parametros, ConfigParameter& parameter,
         case 3:
             parameter = ConfigParameter::EncoderPolarity;
             break;
+        case 4:
+            parameter = ConfigParameter::CellConfig;
+            break;
         default:
             return false;
     }
@@ -225,6 +231,75 @@ bool tryParseConfigParameter(const char* parametros, ConfigParameter& parameter,
     return true;
 }
 
+bool parseHexNibble(char c, uint8_t& value) {
+    if (c >= '0' && c <= '9') {
+        value = static_cast<uint8_t>(c - '0');
+        return true;
+    }
+    if (c >= 'A' && c <= 'F') {
+        value = static_cast<uint8_t>(10 + (c - 'A'));
+        return true;
+    }
+    if (c >= 'a' && c <= 'f') {
+        value = static_cast<uint8_t>(10 + (c - 'a'));
+        return true;
+    }
+    return false;
+}
+
+bool decodeCellConfigHex(const char* texto, CellConfig& config) {
+    if (texto == nullptr) {
+        return false;
+    }
+
+    constexpr size_t bytesCount = sizeof(CellConfig);
+    constexpr size_t expectedLength = bytesCount * 2;
+
+    size_t len = strlen(texto);
+    if (len != expectedLength) {
+        return false;
+    }
+
+    uint8_t* buffer = reinterpret_cast<uint8_t*>(&config);
+    for (size_t i = 0; i < bytesCount; ++i) {
+        uint8_t high = 0;
+        uint8_t low = 0;
+
+        if (!parseHexNibble(texto[2 * i], high) || !parseHexNibble(texto[2 * i + 1], low)) {
+            return false;
+        }
+
+        buffer[i] = static_cast<uint8_t>((high << 4) | low);
+    }
+
+    return true;
+}
+
+char toHexChar(uint8_t value) {
+    value &= 0x0F;
+    if (value < 10) {
+        return static_cast<char>('0' + value);
+    }
+    return static_cast<char>('A' + (value - 10));
+}
+
+void encodeCellConfigHex(const CellConfig& config, char* output, size_t outputSize) {
+    constexpr size_t bytesCount = sizeof(CellConfig);
+    constexpr size_t requiredSize = bytesCount * 2 + 1;
+
+    if (output == nullptr || outputSize < requiredSize) {
+        return;
+    }
+
+    const uint8_t* buffer = reinterpret_cast<const uint8_t*>(&config);
+    for (size_t i = 0; i < bytesCount; ++i) {
+        output[2 * i]     = toHexChar(static_cast<uint8_t>(buffer[i] >> 4));
+        output[2 * i + 1] = toHexChar(buffer[i]);
+    }
+
+    output[bytesCount * 2] = '\0';
+}
+
 bool procesarLecturaConfiguracion(ConfigParameter parameter) {
     switch (parameter) {
         case ConfigParameter::EncoderGain:
@@ -236,6 +311,18 @@ bool procesarLecturaConfiguracion(ConfigParameter parameter) {
         case ConfigParameter::EncoderPolarity:
             Serial.println(encoderPolaritySign);
             return true;
+        case ConfigParameter::CellConfig: {
+            CellConfig config = {};
+            if (!readCellConfig(config)) {
+                return false;
+            }
+
+            constexpr size_t bufferSize = sizeof(CellConfig) * 2 + 1;
+            char buffer[bufferSize];
+            encodeCellConfigHex(config, buffer, sizeof(buffer));
+            Serial.println(buffer);
+            return true;
+        }
         default:
             return false;
     }
@@ -278,6 +365,20 @@ bool procesarEscrituraConfiguracion(ConfigParameter parameter, const char* value
             actualizarPolaridadEncoder(polaridad);
             guardarConfiguracionFlash();
             Serial.println(encoderPolaritySign);
+            return true;
+        }
+        case ConfigParameter::CellConfig: {
+            CellConfig config = {};
+            if (!decodeCellConfigHex(valueStart, config)) {
+                return false;
+            }
+
+            if (!saveCellConfig(config)) {
+                return false;
+            }
+
+            Serial.print("OK");
+            Serial.write(13);
             return true;
         }
         default:
@@ -580,33 +681,33 @@ ComandoMap comandoMaps[] = {
     {"WS", CommandWS, 2},
 	{"A0", CommandAD0, 3}, // Reset ADC
 	{"A1", CommandAD1, 4}, // calibrar internaloffset
-        {"A2", CommandAD2, 5}, // calibrar sysoffset
-        {"A3", CommandAD3, 6}, // calibrar systemgain
-        {"A4", CommandAD4, 7}, // calibrar internalgain
-        {"S0", CommandS0, 8}, // iniciar envio datos
-        {"S1", CommandRate, 9}, // Modificar datarate
-        {"RR", CommandRR, 29}, // Leer datarate actual
+    {"A2", CommandAD2, 5}, // calibrar sysoffset
+    {"A3", CommandAD3, 6}, // calibrar systemgain
+    {"A4", CommandAD4, 7}, // calibrar internalgain
+    {"S0", CommandS0, 8}, // iniciar envio datos
+    {"S1", CommandRate, 9}, // Modificar datarate
+    {"RR", CommandRR, 29}, // Leer datarate actual
     {"RI", CommandRI, 10},
-        {"RC", CommandRC, 11},
-        {"RX", CommandRX, 12}, // Hay extensometro ?
-        {"WM", CommandWM, 13}, // Modo remoto
-        {"RV", CommandRV, 14}, // Velocdidad maxima ?
-        {"WV", CommandWV, 15},
-        {"WI", CommandWV, 16},
-        {"WO", CommandWO, 17}, // Ajuste offset analógico en volts
-        {"RO", CommandROffset, 18},
-        {"WE", CommandWE, 19},
-        {"RE", CommandRE, 20},
-        {"WP", CommandWP, 21},
-        {"RP", CommandRP, 22},
-        {"R1", CommandR1, 23},
-        {"R2", CommandR2, 24},
-        {"R3", CommandR3, 30},
-        {"RS", CommandRS, 25},
-        {"RH", CommandRH, 26}, // Ensayo en curso ?
-        {"WB", CommandRS, 27}, // Alarma baja velo
-        {"WT", CommandWT, 28},
-        {"WZ", CommandWZ, 31}, // Cero de fuerza vía kernel
+    {"RC", CommandRC, 11},
+    {"RX", CommandRX, 12}, // Hay extensometro ?
+    {"WM", CommandWM, 13}, // Modo remoto
+    {"RV", CommandRV, 14}, // Velocdidad maxima ?
+    {"WV", CommandWV, 15},
+    {"WI", CommandWV, 16},
+    {"WO", CommandWO, 17}, // Ajuste offset analógico en volts
+    {"RO", CommandROffset, 18},
+    {"WE", CommandWE, 19},
+    {"RE", CommandRE, 20},
+    {"WP", CommandWP, 21},
+    {"RP", CommandRP, 22},
+    {"R1", CommandR1, 23},
+    {"R2", CommandR2, 24},
+    {"R3", CommandR3, 30},
+    {"RS", CommandRS, 25},
+    {"RH", CommandRH, 26}, // Ensayo en curso ?
+    {"WB", CommandRS, 27}, // Alarma baja velo
+    {"WT", CommandWT, 28},
+    {"WZ", CommandWZ, 31}, // Cero de fuerza vía kernel
     {NULL, NULL, -1} // Marca el fin de la lista
 };
 
@@ -686,7 +787,7 @@ bool ProcesarComandoNuevo(uint8_t* Buf, uint32_t Len) {
 // Formato: 2 caracteres a los que puede seguir un número y siempre termina en "\r"
 // Ejemplos: "WF\r" o "WV1000\r" (donde WV modifica la velocidad a 1000mm/min)
 bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len) {
-    char mensaje[100];
+    char mensaje[200];
 
 
     if (Len >= sizeof(mensaje))
