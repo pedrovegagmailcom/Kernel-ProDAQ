@@ -845,11 +845,11 @@ namespace ProDAQConfig
             _suppressFineOffsetAutoApply = true;
             try
             {
-                var coarse = Math.Max(-1.0, Math.Min(1.0, offset));
+                var coarse = Math.Max(-0.2, Math.Min(0.2, offset));
                 CoarseOffsetValue = Math.Round(coarse, 3);
 
                 var remainder = offset - coarse;
-                FineOffsetAdjustment = Math.Round(Math.Max(-0.1, Math.Min(0.1, remainder)), 3);
+                FineOffsetAdjustment = Math.Round(Math.Max(-0.0001, Math.Min(0.0001, remainder)), 4);
             }
             finally
             {

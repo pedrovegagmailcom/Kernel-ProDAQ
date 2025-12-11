@@ -681,33 +681,33 @@ ComandoMap comandoMaps[] = {
     {"WS", CommandWS, 2},
 	{"A0", CommandAD0, 3}, // Reset ADC
 	{"A1", CommandAD1, 4}, // calibrar internaloffset
-        {"A2", CommandAD2, 5}, // calibrar sysoffset
-        {"A3", CommandAD3, 6}, // calibrar systemgain
-        {"A4", CommandAD4, 7}, // calibrar internalgain
-        {"S0", CommandS0, 8}, // iniciar envio datos
-        {"S1", CommandRate, 9}, // Modificar datarate
-        {"RR", CommandRR, 29}, // Leer datarate actual
+    {"A2", CommandAD2, 5}, // calibrar sysoffset
+    {"A3", CommandAD3, 6}, // calibrar systemgain
+    {"A4", CommandAD4, 7}, // calibrar internalgain
+    {"S0", CommandS0, 8}, // iniciar envio datos
+    {"S1", CommandRate, 9}, // Modificar datarate
+    {"RR", CommandRR, 29}, // Leer datarate actual
     {"RI", CommandRI, 10},
-        {"RC", CommandRC, 11},
-        {"RX", CommandRX, 12}, // Hay extensometro ?
-        {"WM", CommandWM, 13}, // Modo remoto
-        {"RV", CommandRV, 14}, // Velocdidad maxima ?
-        {"WV", CommandWV, 15},
-        {"WI", CommandWV, 16},
-        {"WO", CommandWO, 17}, // Ajuste offset analógico en volts
-        {"RO", CommandROffset, 18},
-        {"WE", CommandWE, 19},
-        {"RE", CommandRE, 20},
-        {"WP", CommandWP, 21},
-        {"RP", CommandRP, 22},
-        {"R1", CommandR1, 23},
-        {"R2", CommandR2, 24},
-        {"R3", CommandR3, 30},
-        {"RS", CommandRS, 25},
-        {"RH", CommandRH, 26}, // Ensayo en curso ?
-        {"WB", CommandRS, 27}, // Alarma baja velo
-        {"WT", CommandWT, 28},
-        {"WZ", CommandWZ, 31}, // Cero de fuerza vía kernel
+    {"RC", CommandRC, 11},
+    {"RX", CommandRX, 12}, // Hay extensometro ?
+    {"WM", CommandWM, 13}, // Modo remoto
+    {"RV", CommandRV, 14}, // Velocdidad maxima ?
+    {"WV", CommandWV, 15},
+    {"WI", CommandWV, 16},
+    {"WO", CommandWO, 17}, // Ajuste offset analógico en volts
+    {"RO", CommandROffset, 18},
+    {"WE", CommandWE, 19},
+    {"RE", CommandRE, 20},
+    {"WP", CommandWP, 21},
+    {"RP", CommandRP, 22},
+    {"R1", CommandR1, 23},
+    {"R2", CommandR2, 24},
+    {"R3", CommandR3, 30},
+    {"RS", CommandRS, 25},
+    {"RH", CommandRH, 26}, // Ensayo en curso ?
+    {"WB", CommandRS, 27}, // Alarma baja velo
+    {"WT", CommandWT, 28},
+    {"WZ", CommandWZ, 31}, // Cero de fuerza vía kernel
     {NULL, NULL, -1} // Marca el fin de la lista
 };
 
