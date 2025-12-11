@@ -6,7 +6,8 @@
         Height="820"
         Background="#0B1120"
         FontFamily="Segoe UI"
-        FontSize="12">
+        FontSize="12"
+        PreviewKeyDown="MainWindow_OnPreviewKeyDown">
     <Window.Resources>
 
         <!-- Colores base -->
