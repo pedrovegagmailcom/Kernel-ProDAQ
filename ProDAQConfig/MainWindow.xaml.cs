@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
 
 namespace ProDAQConfig
@@ -521,6 +522,27 @@ namespace ProDAQConfig
         private async void TelemetryTimerOnTick(object sender, EventArgs e)
         {
             await RequestTelemetryAsync();
+        }
+
+        private async void MainWindow_OnPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            switch (e.Key)
+            {
+                case Key.Up:
+                    await MoveUpAsync();
+                    e.Handled = true;
+                    break;
+                case Key.Down:
+                    await MoveDownAsync();
+                    e.Handled = true;
+                    break;
+                case Key.Left:
+                case Key.Right:
+                case Key.Space:
+                    await StopAsync();
+                    e.Handled = true;
+                    break;
+            }
         }
 
         private void RefreshPorts()
@@ -1271,6 +1293,21 @@ namespace ProDAQConfig
 
         private async void MoveUpButton_Click(object sender, RoutedEventArgs e)
         {
+            await MoveUpAsync();
+        }
+
+        private async void MoveDownButton_Click(object sender, RoutedEventArgs e)
+        {
+            await MoveDownAsync();
+        }
+
+        private async void StopButton_Click(object sender, RoutedEventArgs e)
+        {
+            await StopAsync();
+        }
+
+        private async Task MoveUpAsync()
+        {
             if (!await ApplySpeedSetpointAsync(false))
             {
                 return;
@@ -1279,7 +1316,7 @@ namespace ProDAQConfig
             await SendMachineCommandAsync("WF", "Comando SUBIR enviado", "enviar comando SUBIR", ManualControlState.Up);
         }
 
-        private async void MoveDownButton_Click(object sender, RoutedEventArgs e)
+        private async Task MoveDownAsync()
         {
             if (!await ApplySpeedSetpointAsync(false))
             {
@@ -1289,7 +1326,7 @@ namespace ProDAQConfig
             await SendMachineCommandAsync("WR", "Comando BAJAR enviado", "enviar comando BAJAR", ManualControlState.Down);
         }
 
-        private async void StopButton_Click(object sender, RoutedEventArgs e)
+        private async Task StopAsync()
         {
             await SendMachineCommandAsync("WS", "Comando PARAR enviado", "enviar comando PARAR", ManualControlState.Stop);
         }
