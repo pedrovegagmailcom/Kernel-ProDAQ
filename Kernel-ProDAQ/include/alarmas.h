@@ -29,9 +29,10 @@ public:
 
     void inicializar();   // equivalente a inicializar_alarmas()
     void comprobar();     // equivalente a comprobar_alarmas()
+    void comprobarHW();   // lectura MCP23S08 (solo alarmas cableadas)
 
-    bool    hayAlarmas() const { return _alarmas != 0; }
-    uint8_t getAlarmas() const { return _alarmas; }  // get_alarmas()
+    bool    hayAlarmas() const { return (_alarmas_hw | _alarmas_sw) != 0; }
+    uint8_t getAlarmas() const { return (_alarmas_hw | _alarmas_sw); }  // get_alarmas()
     uint8_t getStatus()  const { return _status; }   // get_status()
 
     // Gestión de estado de máquina (por si lo necesitas desde fuera)
@@ -44,9 +45,13 @@ public:
     void setRemoto(bool on);
     bool isRemoto() const;
 
+    // A_TRAC/A_COMP: sobrecarga por software. A_CELULA: config inválida (legacy Rabbit).
+    void setSwAlarm(AlarmaBit bit, bool on);
+
 private:
     IO &_io;
-    uint8_t _alarmas;
+    uint8_t _alarmas_hw;
+    uint8_t _alarmas_sw;
     uint8_t _status;
 
     // ====== AQUÍ FIJAS PARA SIEMPRE EL MAPEO A LAS ENTRADAS FÍSICAS ======
@@ -69,7 +74,7 @@ private:
 
     bool getInputBit(int bitIndex) const;
 
-    void setAlarmaBit(uint8_t bit, bool value);
+    void setAlarmaBit(uint8_t &dest, uint8_t bit, bool value);
     void setStatusBit(uint8_t bit, bool value);
 };
 
