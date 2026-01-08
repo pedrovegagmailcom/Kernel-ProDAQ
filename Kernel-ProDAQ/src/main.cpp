@@ -213,8 +213,8 @@ void RunAlarmEvaluatorTests() {
   config.capacidad = 100;
   config.limite = 80;
   config.resolucion = 1.0f;
-  config.overload_t = 50;
-  config.overload_c = 40;
+  config.overload_trac_count = 50;
+  config.overload_comp_count = 40;
 
   DatosSensor datos = {};
   alarmas.setSwAlarm(Alarmas::A_TRAC, false);

@@ -8,6 +8,18 @@ constexpr uint32_t N_OFF_MS = 40;
 
 constexpr float HYST_PCT = 0.02f;
 constexpr float HYST_MIN = 1.0f;
+
+float getTemporaryOverloadLimit(const CellConfig &config) {
+    // TODO: sustituir por limit_trac/limit_comp reales en configuración.
+    // Los campos overload_*_count son contadores, no umbrales.
+    if (config.limite > 0) {
+        return static_cast<float>(config.limite);
+    }
+    if (config.capacidad > 0) {
+        return static_cast<float>(config.capacidad);
+    }
+    return 0.0f;
+}
 }  // namespace
 
 AlarmEvaluator::AlarmEvaluator() = default;
@@ -39,10 +51,6 @@ bool AlarmEvaluator::isValidCellConfig(const CellConfig &config) {
     }
 
     if (config.limite > static_cast<uint32_t>(config.capacidad) * 2U) {
-        return false;
-    }
-
-    if (config.overload_t == 0 || config.overload_c == 0) {
         return false;
     }
 
@@ -80,8 +88,11 @@ AlarmEvaluator::Result AlarmEvaluator::update(const DatosSensor &sensor, const C
         return result;
     }
 
-    const float overloadT = static_cast<float>(config.overload_t);
-    const float overloadC = static_cast<float>(config.overload_c);
+    const float overloadT = getTemporaryOverloadLimit(config);
+    const float overloadC = getTemporaryOverloadLimit(config);
+    if (overloadT <= 0.0f || overloadC <= 0.0f) {
+        return result;
+    }
     const float hTrac = fmaxf(HYST_MIN, overloadT * HYST_PCT);
     const float hComp = fmaxf(HYST_MIN, overloadC * HYST_PCT);
 
