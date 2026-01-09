@@ -45,6 +45,8 @@ extern Alarmas alarmas;
 extern LTC2602 LTCdac;
 extern DatosSensor sensorData;
 extern rtos::Mutex sensorDataMutex;
+extern CellConfig cellConfigActual;
+extern rtos::Mutex cellConfigMutex;
 
 static float encoderStepsPerMillimeter = 1.0f;
 static int32_t encoderPolaritySign     = 1;
@@ -376,6 +378,10 @@ bool procesarEscrituraConfiguracion(ConfigParameter parameter, const char* value
             if (!saveCellConfig(config)) {
                 return false;
             }
+
+            cellConfigMutex.lock();
+            cellConfigActual = config;
+            cellConfigMutex.unlock();
 
             Serial.print("OK");
             Serial.write(13);

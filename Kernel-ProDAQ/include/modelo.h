@@ -34,8 +34,8 @@ struct CellConfig {
   float    x2c;
   float    x3c;
   float    x4c;
-  uint16_t overload_t;        // entero sin signo
-  uint16_t overload_c;        // entero sin signo
+  uint16_t overload_trac_count;        // entero sin signo
+  uint16_t overload_comp_count;        // entero sin signo
 } __attribute__((packed));    // evita padding, opcional pero recomendable
 
 
