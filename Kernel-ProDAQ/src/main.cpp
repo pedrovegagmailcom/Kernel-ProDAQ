@@ -22,6 +22,7 @@ using namespace rtos;
 #include "GestionComandos.h"
 #include "utilidades.h"
 #include "cell_config.h"
+#include "MachineMode.h"
 
 void SerialEvent();
 void enviarDatosSensor(DatosSensor datos);
@@ -138,9 +139,25 @@ constexpr float SCALE_N_PER_COUNT = 0.000007906f;
 
 float g_offsetVolt = 0.0f;
 
+static inline float evalCubic(float x, float a0, float a1, float a2, float a3) {
+  return ((a3 * x + a2) * x + a1) * x + a0;
+}
+
+static float applyCellPoly(float Finternal, const CellConfig& c) {
+  const float x = fabsf(Finternal);
+  if (Finternal >= 0.0f) {
+    float y = evalCubic(x, c.x1t, c.x2t, c.x3t, c.x4t);
+    return y;
+  }
+
+  float y = evalCubic(x, c.x1c, c.x2c, c.x3c, c.x4c);
+  return -y;
+}
+
 
 void SensorUpdateLoop() {
   float ultimaFuerzaLeida = 0.0f;
+  float fuerzaBase = 0.0f;
   int32_t raw = 0;
   uint32_t lastHwCheckMs = 0;
 
@@ -161,7 +178,7 @@ void SensorUpdateLoop() {
         // Fuerza en Newtons usando la calibración 0 kg / 1 kg
         float fuerzaN = (raw) * SCALE_N_PER_COUNT;
 
-        ultimaFuerzaLeida = (fuerzaN - RAW_ZERO); // Ajusta este offset según tu tara
+        fuerzaBase = (fuerzaN - RAW_ZERO); // Ajusta este offset según tu tara
       }
     }
 
@@ -174,6 +191,21 @@ void SensorUpdateLoop() {
     cellConfigMutex.lock();
     configSnapshot = cellConfigActual;
     cellConfigMutex.unlock();
+
+    float Finternal = fuerzaBase;
+    if (g_modoCompresometro) {
+      Finternal = -fabsf(fuerzaBase);
+    } else {
+      MoveSense sense = g_lastMoveSense;
+      if (sense == MoveSense::Traction) {
+        Finternal = fabsf(fuerzaBase);
+      } else if (sense == MoveSense::Compression) {
+        Finternal = -fabsf(fuerzaBase);
+      }
+    }
+
+    Finternal = applyCellPoly(Finternal, configSnapshot);
+    ultimaFuerzaLeida = Finternal;
 
     DatosSensor snapshotSensor = {};
     snapshotSensor.fuerza = ultimaFuerzaLeida;
