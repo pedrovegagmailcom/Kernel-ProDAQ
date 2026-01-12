@@ -628,7 +628,7 @@
                                     Minimum="-0.1"
                                     Maximum="0.1"
                                     Value="{Binding FineOffsetAdjustment, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                    TickFrequency="0.005"
+                                    TickFrequency="0.001"
                                     IsSnapToTickEnabled="True"/>
                         </StackPanel>
 

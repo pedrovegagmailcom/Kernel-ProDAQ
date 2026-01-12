@@ -583,36 +583,16 @@ void CommandROffset(float param1, float param2) {
 }
 
 void CommandWE(float param1, float param2) {
-        if (!isfinite(param1) || param1 <= 0.0f) {
-                Serial.println("ERR");
-                return;
-        }
-
-        actualizarGananciaEncoder(param1);
-        guardarConfiguracionFlash();
-        Serial.println(encoderStepsPerMillimeter, 4);
+    Encoder.clear_counter();
+    Serial.println("");
 }
 
 void CommandRE(float param1, float param2) {
-        Serial.println(encoderStepsPerMillimeter, 4);
+    Serial.println(encoderStepsPerMillimeter, 4);
 }
 
 void CommandWP(float param1, float param2) {
-        if (!isfinite(param1)) {
-                Serial.println("ERR");
-                return;
-        }
-
-        int32_t polaridad = static_cast<int32_t>(lrintf(param1));
-
-        if (polaridad == 0) {
-                Serial.println("ERR");
-                return;
-        }
-
-        actualizarPolaridadEncoder(polaridad);
-        guardarConfiguracionFlash();
-        Serial.println(encoderPolaritySign);
+    Serial.println("");
 }
 
 void CommandRP(float param1, float param2) {

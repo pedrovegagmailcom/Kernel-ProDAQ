@@ -33,7 +33,7 @@ void LTC2602::setOutput(uint8_t channel, uint16_t value) {
     //    Write & Update DAC A: 0x30 (0b0011_0000)
     //    Write & Update DAC B: 0x31 (0b0011_0001)
 
-    SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE3));
+    SPI.beginTransaction(SPISettings(8000000, MSBFIRST, SPI_MODE0));
 
     uint8_t command = (CMD_WRITE_INPUT_UPDATE_SINGLE << 4) | (channel & 0x01);
 

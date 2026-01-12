@@ -76,6 +76,7 @@ void setup() {
     Serial.println("AD7175 Initialized Successfully");
   }
 
+   Parar();
   //TaraCelula();
 
   //TransmisionComms.start(mbed::callback(TransmisionLoop));
