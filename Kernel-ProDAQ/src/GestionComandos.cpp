@@ -416,16 +416,6 @@ float convertirParametroVelocidad(float parametro) {
         return 0.0f;
     }
 
-    float parteEntera = 0.0f;
-    float fraccion = modff(parametro, &parteEntera);
-
-    if (fraccion == 0.0f) {
-        // Valor entero: puede provenir del protocolo viejo (sin punto decimal)
-        if (parametro > VELOCIDAD_MAX_MM_MIN) {
-            parametro /= 10.0f;
-        }
-    }
-
     if (parametro > VELOCIDAD_MAX_MM_MIN) {
         parametro = VELOCIDAD_MAX_MM_MIN;
     }
@@ -565,7 +555,13 @@ void CommandRV(float param1, float param2) {
 
 
 void CommandWV(float param1, float param2) {
-        velocidadConsigna = convertirParametroVelocidad(param1);
+        float velocidad = param1;
+
+        if (protocoloActual == PROTOCOLO_VIEJO) {
+                velocidad = velocidad / 10.0f;
+        }
+
+        velocidadConsigna = convertirParametroVelocidad(velocidad);
         actualizarSalidaVelocidad();
         Serial.println("");
 }
