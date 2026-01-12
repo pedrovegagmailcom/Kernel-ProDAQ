@@ -44,6 +44,7 @@ namespace ProDAQConfig
         private double _encoderGain = 1.0;
         private double _speedSetpoint = 100.0;
         private bool _isEncoderInverted;
+        private bool _isCompresometerMode;
         private bool _isConnected;
         private bool _communicationHealthy;
         private bool _isManualUpActive;
@@ -303,6 +304,19 @@ namespace ProDAQConfig
                 {
                     _isEncoderInverted = value;
                     OnPropertyChanged(nameof(IsEncoderInverted));
+                }
+            }
+        }
+
+        public bool IsCompresometerMode
+        {
+            get => _isCompresometerMode;
+            set
+            {
+                if (_isCompresometerMode != value)
+                {
+                    _isCompresometerMode = value;
+                    OnPropertyChanged(nameof(IsCompresometerMode));
                 }
             }
         }
@@ -855,6 +869,12 @@ namespace ProDAQConfig
                 {
                     IsEncoderInverted = polarity < 0;
                 }
+
+                var modeResponse = await QueryDeviceAsync("RP05");
+                if (int.TryParse(modeResponse, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mode))
+                {
+                    IsCompresometerMode = mode == 1;
+                }
             }
             catch (Exception ex)
             {
@@ -1196,6 +1216,11 @@ namespace ProDAQConfig
             await ApplyEncoderPolarityAsync();
         }
 
+        private async void ApplyMachineModeButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            await ApplyMachineModeAsync();
+        }
+
         private void ManageCellConfigButton_OnClick(object sender, RoutedEventArgs e)
         {
             if (_serialPort == null || !IsConnected)
@@ -1241,6 +1266,36 @@ namespace ProDAQConfig
             catch (Exception ex)
             {
                 StatusMessage = $"Error aplicando polaridad: {ex.Message}";
+            }
+        }
+
+        private async Task ApplyMachineModeAsync()
+        {
+            if (_serialPort == null || !IsConnected)
+            {
+                StatusMessage = "Debe conectarse a un puerto antes de aplicar el modo de compresómetro";
+                return;
+            }
+
+            try
+            {
+                var command = $"WP05{(IsCompresometerMode ? 1 : 0)}";
+                await Task.Run(() =>
+                {
+                    lock (_serialLock)
+                    {
+                        _serialPort.WriteLine(command);
+                        _serialPort.ReadLine();
+                    }
+                });
+
+                StatusMessage = IsCompresometerMode
+                    ? "Modo compresómetro aplicado"
+                    : "Modo dinamómetro aplicado";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error aplicando modo de compresómetro: {ex.Message}";
             }
         }
 
