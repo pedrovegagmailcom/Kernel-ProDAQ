@@ -14,6 +14,7 @@
 #include <math.h>
 #include <rtos.h>
 #include <ctype.h>
+#include <chrono>
 
 #include "LS7366.h"
 #include "IO.h"
@@ -35,6 +36,7 @@ typedef enum {
 } ProtocoloMode;
 
 static ProtocoloMode protocoloActual = PROTOCOLO_NUEVO;
+static uint32_t g_oldProtoNextAllowedMs = 0;
 
 extern uint32_t estado_maquina;
 extern volatile bool transmitirDatos;
@@ -55,6 +57,8 @@ static int32_t encoderPolaritySign     = 1;
 namespace {
 
 constexpr float VELOCIDAD_MAX_MM_MIN = 500.0f;
+constexpr uint32_t OLD_PROTOCOL_MAX_HZ = 100;
+constexpr uint32_t OLD_PROTOCOL_MIN_PERIOD_MS = 10;
 constexpr uint8_t DAC_CANAL_BIPOLAR = 1; // Canal B del LTC2602
 constexpr uint16_t DAC_MID_CODE = 32768U;
 constexpr float DAC_MAX_VOLTAGE = 10.0f; // Rango bipolar ±10V
@@ -85,6 +89,35 @@ constexpr uint32_t CONFIG_BASE_ADDR = 0;
 
 ConfigStruct configData{1.0f, 0.0f, 1, 0};
 ConfigStorage configStorage(sizeof(ConfigStruct), CONFIG_MAGIC, CONFIG_BASE_ADDR);
+
+uint32_t get_millis() {
+#if defined(ARDUINO)
+    return millis();
+#elif defined(HAL_GetTick)
+    return HAL_GetTick();
+#else
+    return 0;
+#endif
+}
+
+void sleep_ms(uint32_t ms) {
+#if MBED_CONF_RTOS_PRESENT
+    rtos::ThisThread::sleep_for(std::chrono::milliseconds(ms));
+#elif defined(HAL_Delay)
+    HAL_Delay(ms);
+#else
+    delay(ms);
+#endif
+}
+
+void throttle_old_protocol_if_needed() {
+    uint32_t now = get_millis();
+    if (g_oldProtoNextAllowedMs != 0 && now < g_oldProtoNextAllowedMs) {
+        sleep_ms(g_oldProtoNextAllowedMs - now);
+        now = get_millis();
+    }
+    g_oldProtoNextAllowedMs = now + OLD_PROTOCOL_MIN_PERIOD_MS;
+}
 
 float normalizarVelocidad(float valor) {
     if (!isfinite(valor)) {
@@ -819,6 +852,9 @@ bool ProcesarComandoNuevo(uint8_t* Buf, uint32_t Len) {
 bool ProcesarComandoViejo(uint8_t* Buf, uint32_t Len) {
     char mensaje[200];
 
+    if (Len > 0 && Buf[0] == 'R') {
+        throttle_old_protocol_if_needed();
+    }
 
     if (Len >= sizeof(mensaje))
         return false;
@@ -863,6 +899,7 @@ bool ProcesarMensaje(uint8_t* Buf, uint32_t Len) {
         if (Len >= 2 && ((char*)Buf)[0] == 'R' && ((char*)Buf)[1] == 'I') {
 
             protocoloActual = PROTOCOLO_VIEJO;
+            g_oldProtoNextAllowedMs = 0;
             return ProcesarComandoViejo(Buf, Len);
         }
         if (ProcesarComandoNuevo(Buf, Len)) {
@@ -871,6 +908,7 @@ bool ProcesarMensaje(uint8_t* Buf, uint32_t Len) {
 
         // Compatibilidad: si el formato con tuberías falla, intentar el protocolo viejo
         protocoloActual = PROTOCOLO_VIEJO;
+        g_oldProtoNextAllowedMs = 0;
         return ProcesarComandoViejo(Buf, Len);
     } else {
         return ProcesarComandoViejo(Buf, Len);
