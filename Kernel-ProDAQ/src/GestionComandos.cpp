@@ -562,7 +562,14 @@ void CommandRI(float param1, float param2) {
 
 
 void CommandRC(float param1, float param2) {
-	Serial.println("1000");
+	(void)param1; (void)param2;
+
+	uint16_t limite = 0;
+	cellConfigMutex.lock();
+	limite = cellConfigActual.limite;
+	cellConfigMutex.unlock();
+
+	Serial.println(limite);
 }
 
 void CommandRX(float param1, float param2) {
@@ -608,8 +615,16 @@ void CommandROffset(float param1, float param2) {
 }
 
 void CommandWE(float param1, float param2) {
-    Encoder.clear_counter();
-    Serial.println("");
+	(void)param1; (void)param2;
+
+	Encoder.clear_counter();
+
+	// Forzar salida inmediata a 0 para evitar leer el valor anterior hasta el próximo ciclo de sensores
+	sensorDataMutex.lock();
+	sensorData.extension = 0.0f;
+	sensorDataMutex.unlock();
+
+	Serial.println("");
 }
 
 void CommandRE(float param1, float param2) {
@@ -844,8 +859,8 @@ bool ProcesarMensaje(uint8_t* Buf, uint32_t Len) {
 
     if (protocoloActual == PROTOCOLO_NUEVO) {
 
-        // Si se recibe el comando "RI\r", cambiar a modo antiguo.
-        if (Len == 2 && strncmp((char*)Buf, "RI", 2) == 0) {
+        // Si empieza por "RI" (con o sin \r/\n), forzar protocolo viejo.
+        if (Len >= 2 && ((char*)Buf)[0] == 'R' && ((char*)Buf)[1] == 'I') {
 
             protocoloActual = PROTOCOLO_VIEJO;
             return ProcesarComandoViejo(Buf, Len);
