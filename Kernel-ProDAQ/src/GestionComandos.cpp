@@ -653,6 +653,7 @@ void CommandR1(float param1, float param2) {
         }
 
         Serial.println(fuerza, 4);
+        delay (8);
 }
 
 void CommandR2(float param1, float param2) {
