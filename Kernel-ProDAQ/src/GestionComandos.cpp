@@ -40,6 +40,25 @@ extern uint32_t estado_maquina;
 extern volatile bool transmitirDatos;
 extern volatile uint32_t dataRate;
 
+static constexpr uint32_t OLD_PROTOCOL_MAX_HZ = 100;
+static constexpr uint32_t OLD_PROTOCOL_MIN_INTERVAL_MS = (1000 / OLD_PROTOCOL_MAX_HZ); // 10 ms
+static uint32_t g_lastOldProtoResponseMs = 0;
+
+static inline void ThrottleOldProtocolResponseIfNeeded() {
+    if (protocoloActual != PROTOCOLO_VIEJO) {
+        return;
+    }
+
+    uint32_t now = millis();
+    uint32_t elapsed = now - g_lastOldProtoResponseMs;
+
+    if (elapsed < OLD_PROTOCOL_MIN_INTERVAL_MS) {
+        delay(OLD_PROTOCOL_MIN_INTERVAL_MS - elapsed);
+    }
+
+    g_lastOldProtoResponseMs = millis();
+}
+
 extern LS7366 Encoder;
 extern IO IOsystem;
 extern Alarmas alarmas;
@@ -563,6 +582,7 @@ void CommandRI(float param1, float param2) {
 
 void CommandRC(float param1, float param2) {
 	(void)param1; (void)param2;
+	ThrottleOldProtocolResponseIfNeeded();
 
 	uint16_t limite = 0;
 	cellConfigMutex.lock();
@@ -644,6 +664,7 @@ void CommandWI(float param1, float param2) {
 }
 
 void CommandR1(float param1, float param2) {
+        ThrottleOldProtocolResponseIfNeeded();
         sensorDataMutex.lock();
         float fuerza = sensorData.fuerza;
         sensorDataMutex.unlock();
@@ -656,6 +677,7 @@ void CommandR1(float param1, float param2) {
 }
 
 void CommandR2(float param1, float param2) {
+    ThrottleOldProtocolResponseIfNeeded();
     if (encoderStepsPerMillimeter <= 0.0f) {
         Serial.println("ERR");
         return;
@@ -673,6 +695,7 @@ void CommandR2(float param1, float param2) {
 }
 
 void CommandR3(float param1, float param2) {
+    ThrottleOldProtocolResponseIfNeeded();
     sensorDataMutex.lock();
     float voltaje = sensorData.voltaje;
     sensorDataMutex.unlock();
@@ -681,6 +704,7 @@ void CommandR3(float param1, float param2) {
 }
 
 void CommandRS(float param1, float param2) {
+    ThrottleOldProtocolResponseIfNeeded();
     sensorDataMutex.lock();
     uint8_t alarmasByte = static_cast<uint8_t>(sensorData.estado & 0xFFu);
     uint8_t statusByte  = static_cast<uint8_t>((sensorData.estado >> 8) & 0xFFu);
@@ -693,6 +717,7 @@ void CommandRS(float param1, float param2) {
 }
 
 void CommandRH(float param1, float param2) {
+	ThrottleOldProtocolResponseIfNeeded();
 	Serial.println("0");
 }
 
