@@ -18,6 +18,7 @@ using namespace rtos;
 #include "IO.h"
 #include "alarmas.h"
 #include "AlarmEvaluator.h"
+#include "RawOverloadEvaluator.h"
 #include "tramos.h"
 #include "GestionComandos.h"
 #include "utilidades.h"
@@ -34,6 +35,7 @@ LS7366 Encoder;
 IO IOsystem;
 Alarmas alarmas(IOsystem);
 AlarmEvaluator alarmEvaluator;
+RawOverloadEvaluator rawOverloadEvaluator;
 
 Thread RecepcionComms;
 Thread TransmisionComms;
@@ -170,6 +172,7 @@ void SensorUpdateLoop() {
   int32_t raw = 0;
   int32_t raw_unfiltered = 0;
   uint32_t lastHwCheckMs = 0;
+  bool rawEvaluatorInit = false;
 
   while (true) {
     // Comprobar alarmas cableadas a una cadencia menor.
@@ -183,6 +186,17 @@ void SensorUpdateLoop() {
     if (ad7175Inicializado && AD7175_WaitForReady(5) == 0) {
       
       if (AD7175_ReadData(&raw_unfiltered) == 0) {
+        if (!rawEvaluatorInit) {
+          rawOverloadEvaluator.setThresholds(0x780000, 0x740000);
+          rawOverloadEvaluator.setTiming(2, 5);
+          rawEvaluatorInit = true;
+        }
+
+        RawOverloadResult rawAlarmas = rawOverloadEvaluator.update(
+            raw_unfiltered, g_modoCompresometro);
+        alarmas.setSwAlarm(Alarmas::A_TRAC, rawAlarmas.trac);
+        alarmas.setSwAlarm(Alarmas::A_COMP, rawAlarmas.comp);
+
         raw = filtroRC_counts(raw_unfiltered);
 
         // raw ya es 24 bits con signo extendido (bipolar)
@@ -212,8 +226,6 @@ void SensorUpdateLoop() {
     snapshotSensor.fuerza = ultimaFuerzaLeida;
 
     AlarmEvaluator::Result swAlarmas = alarmEvaluator.update(snapshotSensor, configSnapshot);
-    alarmas.setSwAlarm(Alarmas::A_TRAC, swAlarmas.trac);
-    alarmas.setSwAlarm(Alarmas::A_COMP, swAlarmas.comp);
     alarmas.setSwAlarm(Alarmas::A_CELULA, swAlarmas.cellConfigFault);
 
     
