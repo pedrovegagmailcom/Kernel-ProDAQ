@@ -22,6 +22,7 @@
 #include "modelo.h"
 #include "AD7175.h"
 #include "cell_config.h"
+#include "MachineMode.h"
 
 #include "GestionComandos.h"
 #include "utilidades.h"
@@ -45,6 +46,8 @@ extern Alarmas alarmas;
 extern LTC2602 LTCdac;
 extern DatosSensor sensorData;
 extern rtos::Mutex sensorDataMutex;
+extern CellConfig cellConfigActual;
+extern rtos::Mutex cellConfigMutex;
 
 static float encoderStepsPerMillimeter = 1.0f;
 static int32_t encoderPolaritySign     = 1;
@@ -66,6 +69,7 @@ struct ConfigStruct {
     float encoderGainStepsPerMillimeter;
     float dacOffsetVolts;
     int32_t encoderPolaritySign;
+    uint8_t modoCompresometro;
 };
 
 enum class ConfigParameter : uint8_t {
@@ -73,12 +77,13 @@ enum class ConfigParameter : uint8_t {
     DacOffset     = 2,
     EncoderPolarity = 3,
     CellConfig    = 4,
+    MachineMode   = 5,
 };
 
-constexpr uint32_t CONFIG_MAGIC = 0x43464732; // "CFG2"
+constexpr uint32_t CONFIG_MAGIC = 0x43464733; // "CFG3"
 constexpr uint32_t CONFIG_BASE_ADDR = 0;
 
-ConfigStruct configData{1.0f, 0.0f, 1};
+ConfigStruct configData{1.0f, 0.0f, 1, 0};
 ConfigStorage configStorage(sizeof(ConfigStruct), CONFIG_MAGIC, CONFIG_BASE_ADDR);
 
 float normalizarVelocidad(float valor) {
@@ -161,6 +166,7 @@ void guardarConfiguracionFlash() {
     configData.dacOffsetVolts              = dacZeroOffsetVolts;
     configData.encoderGainStepsPerMillimeter = encoderStepsPerMillimeter;
     configData.encoderPolaritySign         = encoderPolaritySign;
+    configData.modoCompresometro           = g_modoCompresometro ? 1 : 0;
 
     if (!configStorage.save(&configData)) {
         Serial.println("No se pudo guardar la configuración en flash");
@@ -171,6 +177,7 @@ void aplicarConfiguracion(const ConfigStruct& cfg) {
     actualizarGananciaEncoder(cfg.encoderGainStepsPerMillimeter);
     actualizarOffsetDAC(cfg.dacOffsetVolts);
     actualizarPolaridadEncoder(cfg.encoderPolaritySign);
+    g_modoCompresometro = (cfg.modoCompresometro != 0);
 }
 
 void cargarConfiguracionFlash() {
@@ -214,6 +221,9 @@ bool tryParseConfigParameter(const char* parametros, ConfigParameter& parameter,
             break;
         case 4:
             parameter = ConfigParameter::CellConfig;
+            break;
+        case 5:
+            parameter = ConfigParameter::MachineMode;
             break;
         default:
             return false;
@@ -323,6 +333,9 @@ bool procesarLecturaConfiguracion(ConfigParameter parameter) {
             Serial.println(buffer);
             return true;
         }
+        case ConfigParameter::MachineMode:
+            Serial.println(g_modoCompresometro ? 1 : 0);
+            return true;
         default:
             return false;
     }
@@ -377,6 +390,22 @@ bool procesarEscrituraConfiguracion(ConfigParameter parameter, const char* value
                 return false;
             }
 
+            cellConfigMutex.lock();
+            cellConfigActual = config;
+            cellConfigMutex.unlock();
+
+            Serial.print("OK");
+            Serial.write(13);
+            return true;
+        }
+        case ConfigParameter::MachineMode: {
+            long modo = strtol(valueStart, &endPtr, 10);
+            if (endPtr == valueStart || (modo != 0 && modo != 1)) {
+                return false;
+            }
+            g_modoCompresometro = (modo != 0);
+            configData.modoCompresometro = static_cast<uint8_t>(modo);
+            guardarConfiguracionFlash();
             Serial.print("OK");
             Serial.write(13);
             return true;
@@ -408,16 +437,6 @@ bool procesarComandoConfiguracion(const char* comando, const char* parametros) {
 float convertirParametroVelocidad(float parametro) {
     if (!isfinite(parametro)) {
         return 0.0f;
-    }
-
-    float parteEntera = 0.0f;
-    float fraccion = modff(parametro, &parteEntera);
-
-    if (fraccion == 0.0f) {
-        // Valor entero: puede provenir del protocolo viejo (sin punto decimal)
-        if (parametro > VELOCIDAD_MAX_MM_MIN) {
-            parametro /= 10.0f;
-        }
     }
 
     if (parametro > VELOCIDAD_MAX_MM_MIN) {
@@ -459,7 +478,6 @@ void Parar() {
 }
 
 void CommandWF(float param1, float param2) {
-
         CambiarBit(&estado_maquina, 0, 1);
         CambiarBit(&estado_maquina, 1, 0);
         CambiarBit(&estado_maquina, 2, 0);
@@ -541,7 +559,14 @@ void CommandRI(float param1, float param2) {
 
 
 void CommandRC(float param1, float param2) {
-	Serial.println("1000");
+	(void)param1; (void)param2;
+
+	uint16_t limite = 0;
+	cellConfigMutex.lock();
+	limite = cellConfigActual.limite;
+	cellConfigMutex.unlock();
+
+	Serial.println(limite);
 }
 
 void CommandRX(float param1, float param2) {
@@ -559,7 +584,13 @@ void CommandRV(float param1, float param2) {
 
 
 void CommandWV(float param1, float param2) {
-        velocidadConsigna = convertirParametroVelocidad(param1);
+        float velocidad = param1;
+
+        if (protocoloActual == PROTOCOLO_VIEJO) {
+                velocidad = velocidad / 10.0f;
+        }
+
+        velocidadConsigna = convertirParametroVelocidad(velocidad);
         actualizarSalidaVelocidad();
         Serial.println("");
 }
@@ -581,36 +612,24 @@ void CommandROffset(float param1, float param2) {
 }
 
 void CommandWE(float param1, float param2) {
-        if (!isfinite(param1) || param1 <= 0.0f) {
-                Serial.println("ERR");
-                return;
-        }
+	(void)param1; (void)param2;
 
-        actualizarGananciaEncoder(param1);
-        guardarConfiguracionFlash();
-        Serial.println(encoderStepsPerMillimeter, 4);
+	Encoder.clear_counter();
+
+	// Forzar salida inmediata a 0 para evitar leer el valor anterior hasta el próximo ciclo de sensores
+	sensorDataMutex.lock();
+	sensorData.extension = 0.0f;
+	sensorDataMutex.unlock();
+
+	Serial.println("");
 }
 
 void CommandRE(float param1, float param2) {
-        Serial.println(encoderStepsPerMillimeter, 4);
+    Serial.println(encoderStepsPerMillimeter, 4);
 }
 
 void CommandWP(float param1, float param2) {
-        if (!isfinite(param1)) {
-                Serial.println("ERR");
-                return;
-        }
-
-        int32_t polaridad = static_cast<int32_t>(lrintf(param1));
-
-        if (polaridad == 0) {
-                Serial.println("ERR");
-                return;
-        }
-
-        actualizarPolaridadEncoder(polaridad);
-        guardarConfiguracionFlash();
-        Serial.println(encoderPolaritySign);
+    Serial.println("");
 }
 
 void CommandRP(float param1, float param2) {
@@ -626,7 +645,12 @@ void CommandR1(float param1, float param2) {
         float fuerza = sensorData.fuerza;
         sensorDataMutex.unlock();
 
+        if (protocoloActual == PROTOCOLO_VIEJO && g_modoCompresometro) {
+            fuerza = -fuerza;
+        }
+
         Serial.println(fuerza, 4);
+        delay (8);
 }
 
 void CommandR2(float param1, float param2) {
@@ -638,6 +662,10 @@ void CommandR2(float param1, float param2) {
     sensorDataMutex.lock();
     float extension = sensorData.extension;
     sensorDataMutex.unlock();
+
+    if (protocoloActual == PROTOCOLO_VIEJO && g_modoCompresometro) {
+        extension = -extension;
+    }
 
     Serial.println(extension, 4);
 }
@@ -829,8 +857,8 @@ bool ProcesarMensaje(uint8_t* Buf, uint32_t Len) {
 
     if (protocoloActual == PROTOCOLO_NUEVO) {
 
-        // Si se recibe el comando "RI\r", cambiar a modo antiguo.
-        if (Len == 2 && strncmp((char*)Buf, "RI", 2) == 0) {
+        // Si empieza por "RI" (con o sin \r/\n), forzar protocolo viejo.
+        if (Len >= 2 && ((char*)Buf)[0] == 'R' && ((char*)Buf)[1] == 'I') {
 
             protocoloActual = PROTOCOLO_VIEJO;
             return ProcesarComandoViejo(Buf, Len);

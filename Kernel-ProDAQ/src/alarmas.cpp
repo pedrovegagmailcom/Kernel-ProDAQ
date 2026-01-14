@@ -1,10 +1,11 @@
 #include "Alarmas.h"
 
 Alarmas::Alarmas(IO &io)
-    : _io(io), _alarmas(0), _status(0) { }
+    : _io(io), _alarmas_hw(0), _alarmas_sw(0), _status(0) { }
 
 void Alarmas::inicializar() {
-    _alarmas = 0;
+    _alarmas_hw = 0;
+    _alarmas_sw = 0;
     _status  = 0;
 
     // En Rabbit se hacía estado_stop_on al iniciar :contentReference[oaicite:1]{index=1}
@@ -17,12 +18,12 @@ bool Alarmas::getInputBit(int bitIndex) const {
     return (inputs & (1u << bitIndex)) != 0;
 }
 
-void Alarmas::setAlarmaBit(uint8_t bit, bool value) {
+void Alarmas::setAlarmaBit(uint8_t &dest, uint8_t bit, bool value) {
     if (bit > 7) return;
     if (value) {
-        _alarmas |= (1u << bit);
+        dest |= (1u << bit);
     } else {
-        _alarmas &= ~(1u << bit);
+        dest &= ~(1u << bit);
     }
 }
 
@@ -36,6 +37,10 @@ void Alarmas::setStatusBit(uint8_t bit, bool value) {
 }
 
 void Alarmas::comprobar() {
+    comprobarHW();
+}
+
+void Alarmas::comprobarHW() {
     // Leer todas las entradas físicas en un único acceso
     uint16_t inputs = _io.readInputs();
 
@@ -44,25 +49,26 @@ void Alarmas::comprobar() {
     if (INPUT_ENABLE_BIT >= 0) {
         bool enable = (inputs & (1u << INPUT_ENABLE_BIT)) != 0;
         if (!enable) {
-            _alarmas = 0;
+            _alarmas_hw = 0;
             return;
         }
     }
 
-    // Mapear las 8 alarmas al mapa fijo de entradas físicas
+    _alarmas_hw = 0;
+
+    // Mapear solo las alarmas cableadas
     // (suponiendo que tienes definidos en Alarmas.h:
-    //  INPUT_FCS_BIT, INPUT_FCI_BIT, INPUT_SETA_BIT, INPUT_MOTOR_BIT,
-    //  INPUT_COMP_BIT, INPUT_TRAC_BIT, INPUT_CERO_BIT, INPUT_CELULA_BIT)
+    //  INPUT_FCS_BIT, INPUT_FCI_BIT, INPUT_SETA_BIT, INPUT_MOTOR_BIT)
+    // A_TRAC/A_COMP/A_CELULA/A_CERO se reservan a alarmas software.
 
-    setAlarmaBit(A_FCS,    (inputs & (1u << INPUT_FCS_BIT))    != 0);
-    setAlarmaBit(A_FCI,    (inputs & (1u << INPUT_FCI_BIT))    != 0);
-    setAlarmaBit(A_SETA,   (inputs & (1u << INPUT_SETA_BIT))   != 0);
-    setAlarmaBit(A_MOTOR,  (inputs & (1u << INPUT_MOTOR_BIT))  != 0);
+    setAlarmaBit(_alarmas_hw, A_FCS,   (inputs & (1u << INPUT_FCS_BIT))   != 0);
+    setAlarmaBit(_alarmas_hw, A_FCI,   (inputs & (1u << INPUT_FCI_BIT))   != 0);
+    setAlarmaBit(_alarmas_hw, A_SETA,  (inputs & (1u << INPUT_SETA_BIT))  != 0);
+    setAlarmaBit(_alarmas_hw, A_MOTOR, (inputs & (1u << INPUT_MOTOR_BIT)) != 0);
+}
 
-    setAlarmaBit(A_COMP,   (inputs & (1u << INPUT_COMP_BIT))   != 0);
-    setAlarmaBit(A_TRAC,   (inputs & (1u << INPUT_TRAC_BIT))   != 0);
-    setAlarmaBit(A_CERO,   (inputs & (1u << INPUT_CERO_BIT))   != 0);
-    setAlarmaBit(A_CELULA, (inputs & (1u << INPUT_CELULA_BIT)) != 0);
+void Alarmas::setSwAlarm(AlarmaBit bit, bool on) {
+    setAlarmaBit(_alarmas_sw, static_cast<uint8_t>(bit), on);
 }
 
 // ======= Gestión de estado de máquina =======

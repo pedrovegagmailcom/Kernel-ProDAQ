@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Threading;
 
 namespace ProDAQConfig
@@ -43,6 +44,7 @@ namespace ProDAQConfig
         private double _encoderGain = 1.0;
         private double _speedSetpoint = 100.0;
         private bool _isEncoderInverted;
+        private bool _isCompresometerMode;
         private bool _isConnected;
         private bool _communicationHealthy;
         private bool _isManualUpActive;
@@ -306,6 +308,19 @@ namespace ProDAQConfig
             }
         }
 
+        public bool IsCompresometerMode
+        {
+            get => _isCompresometerMode;
+            set
+            {
+                if (_isCompresometerMode != value)
+                {
+                    _isCompresometerMode = value;
+                    OnPropertyChanged(nameof(IsCompresometerMode));
+                }
+            }
+        }
+
         #region Propiedades de alarmas
 
         public bool AlarmMotorActive
@@ -521,6 +536,27 @@ namespace ProDAQConfig
         private async void TelemetryTimerOnTick(object sender, EventArgs e)
         {
             await RequestTelemetryAsync();
+        }
+
+        private async void MainWindow_OnPreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            switch (e.Key)
+            {
+                case Key.Up:
+                    await MoveUpAsync();
+                    e.Handled = true;
+                    break;
+                case Key.Down:
+                    await MoveDownAsync();
+                    e.Handled = true;
+                    break;
+                case Key.Left:
+                case Key.Right:
+                case Key.Space:
+                    await StopAsync();
+                    e.Handled = true;
+                    break;
+            }
         }
 
         private void RefreshPorts()
@@ -832,6 +868,12 @@ namespace ProDAQConfig
                 if (int.TryParse(polarityResponse, NumberStyles.Integer, CultureInfo.InvariantCulture, out var polarity))
                 {
                     IsEncoderInverted = polarity < 0;
+                }
+
+                var modeResponse = await QueryDeviceAsync("RP05");
+                if (int.TryParse(modeResponse, NumberStyles.Integer, CultureInfo.InvariantCulture, out var mode))
+                {
+                    IsCompresometerMode = mode == 1;
                 }
             }
             catch (Exception ex)
@@ -1174,6 +1216,11 @@ namespace ProDAQConfig
             await ApplyEncoderPolarityAsync();
         }
 
+        private async void ApplyMachineModeButton_OnClick(object sender, RoutedEventArgs e)
+        {
+            await ApplyMachineModeAsync();
+        }
+
         private void ManageCellConfigButton_OnClick(object sender, RoutedEventArgs e)
         {
             if (_serialPort == null || !IsConnected)
@@ -1219,6 +1266,36 @@ namespace ProDAQConfig
             catch (Exception ex)
             {
                 StatusMessage = $"Error aplicando polaridad: {ex.Message}";
+            }
+        }
+
+        private async Task ApplyMachineModeAsync()
+        {
+            if (_serialPort == null || !IsConnected)
+            {
+                StatusMessage = "Debe conectarse a un puerto antes de aplicar el modo de compresómetro";
+                return;
+            }
+
+            try
+            {
+                var command = $"WP05{(IsCompresometerMode ? 1 : 0)}";
+                await Task.Run(() =>
+                {
+                    lock (_serialLock)
+                    {
+                        _serialPort.WriteLine(command);
+                        _serialPort.ReadLine();
+                    }
+                });
+
+                StatusMessage = IsCompresometerMode
+                    ? "Modo compresómetro aplicado"
+                    : "Modo dinamómetro aplicado";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"Error aplicando modo de compresómetro: {ex.Message}";
             }
         }
 
@@ -1271,6 +1348,21 @@ namespace ProDAQConfig
 
         private async void MoveUpButton_Click(object sender, RoutedEventArgs e)
         {
+            await MoveUpAsync();
+        }
+
+        private async void MoveDownButton_Click(object sender, RoutedEventArgs e)
+        {
+            await MoveDownAsync();
+        }
+
+        private async void StopButton_Click(object sender, RoutedEventArgs e)
+        {
+            await StopAsync();
+        }
+
+        private async Task MoveUpAsync()
+        {
             if (!await ApplySpeedSetpointAsync(false))
             {
                 return;
@@ -1279,7 +1371,7 @@ namespace ProDAQConfig
             await SendMachineCommandAsync("WF", "Comando SUBIR enviado", "enviar comando SUBIR", ManualControlState.Up);
         }
 
-        private async void MoveDownButton_Click(object sender, RoutedEventArgs e)
+        private async Task MoveDownAsync()
         {
             if (!await ApplySpeedSetpointAsync(false))
             {
@@ -1289,7 +1381,7 @@ namespace ProDAQConfig
             await SendMachineCommandAsync("WR", "Comando BAJAR enviado", "enviar comando BAJAR", ManualControlState.Down);
         }
 
-        private async void StopButton_Click(object sender, RoutedEventArgs e)
+        private async Task StopAsync()
         {
             await SendMachineCommandAsync("WS", "Comando PARAR enviado", "enviar comando PARAR", ManualControlState.Stop);
         }

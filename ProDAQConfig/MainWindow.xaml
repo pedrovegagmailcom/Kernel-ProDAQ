@@ -6,7 +6,8 @@
         Height="820"
         Background="#0B1120"
         FontFamily="Segoe UI"
-        FontSize="12">
+        FontSize="12"
+        PreviewKeyDown="MainWindow_OnPreviewKeyDown">
     <Window.Resources>
 
         <!-- Colores base -->
@@ -586,6 +587,17 @@
                                 Click="ApplyEncoderPolarityButton_OnClick"/>
                     </StackPanel>
 
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                        <CheckBox Content="Modo Compresómetro (solo compresión)"
+                                  IsChecked="{Binding IsCompresometerMode, Mode=TwoWay}"
+                                  Foreground="{StaticResource TextSecondaryBrush}"
+                                  VerticalAlignment="Center"/>
+                        <Button Content="Aplicar"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Margin="8,0,0,0"
+                                Click="ApplyMachineModeButton_OnClick"/>
+                    </StackPanel>
+
                     <Separator Margin="0,8,0,8" Background="{StaticResource CardBorderBrush}" Height="1"/>
 
                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
@@ -627,7 +639,7 @@
                                     Minimum="-0.1"
                                     Maximum="0.1"
                                     Value="{Binding FineOffsetAdjustment, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                    TickFrequency="0.005"
+                                    TickFrequency="0.001"
                                     IsSnapToTickEnabled="True"/>
                         </StackPanel>
 
