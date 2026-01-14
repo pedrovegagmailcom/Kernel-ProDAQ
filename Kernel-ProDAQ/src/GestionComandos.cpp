@@ -478,8 +478,6 @@ void Parar() {
 }
 
 void CommandWF(float param1, float param2) {
-
-        g_lastMoveSense = MoveSense::Traction;
         CambiarBit(&estado_maquina, 0, 1);
         CambiarBit(&estado_maquina, 1, 0);
         CambiarBit(&estado_maquina, 2, 0);
@@ -489,7 +487,6 @@ void CommandWF(float param1, float param2) {
 }
 
 void CommandWR(float param1, float param2) {
-        g_lastMoveSense = MoveSense::Compression;
         CambiarBit(&estado_maquina, 0, 0);
         CambiarBit(&estado_maquina, 1, 1);
         CambiarBit(&estado_maquina, 2, 0);
