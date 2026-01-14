@@ -192,17 +192,7 @@ void SensorUpdateLoop() {
     configSnapshot = cellConfigActual;
     cellConfigMutex.unlock();
 
-    float Finternal = fuerzaBase;
-    if (g_modoCompresometro) {
-      Finternal = -fabsf(fuerzaBase);
-    } else {
-      MoveSense sense = g_lastMoveSense;
-      if (sense == MoveSense::Traction) {
-        Finternal = fabsf(fuerzaBase);
-      } else if (sense == MoveSense::Compression) {
-        Finternal = -fabsf(fuerzaBase);
-      }
-    }
+    float Finternal = g_modoCompresometro ? -fabsf(fuerzaBase) : fuerzaBase;
 
     Finternal = applyCellPoly(Finternal, configSnapshot);
     ultimaFuerzaLeida = Finternal;
