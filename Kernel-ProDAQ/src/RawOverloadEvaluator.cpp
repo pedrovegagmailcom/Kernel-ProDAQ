@@ -21,21 +21,18 @@ void RawOverloadEvaluator::clearSide(SideState& side) {
 void RawOverloadEvaluator::updateSide(SideState& side, bool candidate, int32_t absCounts) {
   if (!candidate) {
     side.onCount = 0;
-    if (side.active && absCounts <= offCountsAbs_) {
-      if (side.offCount < nOff_) {
-        ++side.offCount;
-      }
-      if (side.offCount >= nOff_) {
-        side.active = false;
-        side.offCount = 0;
-      }
-    } else {
-      side.offCount = 0;
-    }
+    side.offCount = 0;
+    side.active = false;
     return;
   }
 
   side.offCount = 0;
+  if (side.active && absCounts <= offCountsAbs_) {
+    side.active = false;
+    side.onCount = 0;
+    return;
+  }
+
   if (side.active) {
     return;
   }
