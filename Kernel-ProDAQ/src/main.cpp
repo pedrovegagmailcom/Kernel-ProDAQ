@@ -154,11 +154,21 @@ static float applyCellPoly(float Finternal, const CellConfig& c) {
   return -y;
 }
 
+static int32_t filtroRC_counts(int32_t present_reading) {
+  static int32_t last_output = 0;
+  const int32_t x = 5;
+
+  int32_t var1 = (x * last_output + present_reading);
+  last_output = var1 / (x + 1);
+  return last_output;
+}
+
 
 void SensorUpdateLoop() {
   float ultimaFuerzaLeida = 0.0f;
   float fuerzaBase = 0.0f;
   int32_t raw = 0;
+  int32_t raw_unfiltered = 0;
   uint32_t lastHwCheckMs = 0;
 
   while (true) {
@@ -172,7 +182,8 @@ void SensorUpdateLoop() {
     // Lectura de la celda de carga a través del AD7175.
     if (ad7175Inicializado && AD7175_WaitForReady(5) == 0) {
       
-      if (AD7175_ReadData(&raw) == 0) {
+      if (AD7175_ReadData(&raw_unfiltered) == 0) {
+        raw = filtroRC_counts(raw_unfiltered);
 
         // raw ya es 24 bits con signo extendido (bipolar)
         // Fuerza en Newtons usando la calibración 0 kg / 1 kg

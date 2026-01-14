@@ -148,17 +148,6 @@ int32_t AD7175_GetState(uint8_t* st) {
 
 
 
-int32_t filtroRC(int32_t present_reading) {
-    static int32_t last_output = 0;  // Inicializa en 0 la primera vez
-    int32_t var1;
-    int32_t x = 5;  // Constante de tiempo del filtro
-
-    var1 = (x * last_output + present_reading);
-    last_output = var1 / (x + 1);
-
-    return last_output;
-}
-
 int32_t AD7175_ReadData(int32_t* pData) {
     if (AD7175_ReadRegister(&AD7175_regs[Data_Register]) != 0)
         return -1;
@@ -170,7 +159,6 @@ int32_t AD7175_ReadData(int32_t* pData) {
     int32_t signed24 = (int32_t)code24 - 0x800000;
 
 
-    signed24 = filtroRC(signed24);
     *pData = signed24;
     return 0;
 }
@@ -393,4 +381,3 @@ int32_t AD7175_SystemZeroScaleCalibrate(void)
 
     return 0;
 }
-
