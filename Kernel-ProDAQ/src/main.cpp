@@ -130,14 +130,12 @@ void TransmisionLoop() {
 
 
 
-constexpr float   VREF_V            = 3.300f; // ya lo tienes definido
-constexpr int     PGA_GAIN          = 1;      // el que uses en el SETUP0
-constexpr float   F_FULLSCALE_N     = 50.0f;  // tu célula es de 50 N
-constexpr float   CELL_SENS_MV_PER_V= 2.0f;   // EJEMPLO: 2 mV/V (cámbialo)
-constexpr float   EXCITATION_V      = 10.0f;   // tensión que le das al puente
+constexpr float   VREF_V            = 3.300f; 
+constexpr int     PGA_GAIN          = 1;      
+constexpr float   F_FULLSCALE_N     = 50.0f;  
+constexpr float   CELL_SENS_MV_PER_V= 2.0f;   //  2 mV/V 
+constexpr float   EXCITATION_V      = 10.0f;   
 
-constexpr float RAW_ZERO          = 0;//8.327;                   // lectura sin carga
-constexpr float SCALE_N_PER_COUNT = 0.000007906f;
 
 float g_offsetVolt = 0.0f;
 
@@ -201,9 +199,9 @@ void SensorUpdateLoop() {
 
         // raw ya es 24 bits con signo extendido (bipolar)
         // Fuerza en Newtons usando la calibración 0 kg / 1 kg
-        float fuerzaN = (raw) * SCALE_N_PER_COUNT;
+        float fuerzaN = raw;
 
-        fuerzaBase = (fuerzaN - RAW_ZERO); // Ajusta este offset según tu tara
+        fuerzaBase = fuerzaN; // Ajusta este offset según tu tara
       }
     }
 
