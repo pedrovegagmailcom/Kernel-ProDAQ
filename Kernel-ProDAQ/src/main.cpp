@@ -145,13 +145,13 @@ static inline float evalCubic(float x, float a0, float a1, float a2, float a3) {
 
 static float applyCellPoly(float Finternal, const CellConfig& c) {
   const float x = fabsf(Finternal);
-  if (Finternal >= 0.0f) {
+  //if (Finternal >= 0.0f) {
     float y = evalCubic(x, c.x1t, c.x2t, c.x3t, c.x4t);
     return y;
-  }
+  //}
 
-  float y = evalCubic(x, c.x1c, c.x2c, c.x3c, c.x4c);
-  return -y;
+  //float y = evalCubic(x, c.x1c, c.x2c, c.x3c, c.x4c);
+  //return -y;
 }
 
 static int32_t filtroRC_counts(int32_t present_reading) {
@@ -199,7 +199,7 @@ void SensorUpdateLoop() {
 
         // raw ya es 24 bits con signo extendido (bipolar)
         // Fuerza en Newtons usando la calibración 0 kg / 1 kg
-        float fuerzaN = raw;
+        float fuerzaN = raw_unfiltered;//raw;
 
         fuerzaBase = fuerzaN; // Ajusta este offset según tu tara
       }

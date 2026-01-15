@@ -644,13 +644,9 @@ void CommandR1(float param1, float param2) {
         sensorDataMutex.lock();
         float fuerza = sensorData.fuerza;
         sensorDataMutex.unlock();
-
-        if (protocoloActual == PROTOCOLO_VIEJO && g_modoCompresometro) {
-            fuerza = -fuerza;
-        }
-
+     
         Serial.println(fuerza, 4);
-        delay (8);
+        osDelay (8);
 }
 
 void CommandR2(float param1, float param2) {
@@ -662,10 +658,6 @@ void CommandR2(float param1, float param2) {
     sensorDataMutex.lock();
     float extension = sensorData.extension;
     sensorDataMutex.unlock();
-
-    if (protocoloActual == PROTOCOLO_VIEJO && g_modoCompresometro) {
-        extension = -extension;
-    }
 
     Serial.println(extension, 4);
 }
