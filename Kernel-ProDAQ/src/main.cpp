@@ -190,16 +190,15 @@ void SensorUpdateLoop() {
           rawEvaluatorInit = true;
         }
 
-        RawOverloadResult rawAlarmas = rawOverloadEvaluator.update(
-            raw_unfiltered, g_modoCompresometro);
+        RawOverloadResult rawAlarmas = rawOverloadEvaluator.update(raw_unfiltered);
         alarmas.setSwAlarm(Alarmas::A_TRAC, rawAlarmas.trac);
         alarmas.setSwAlarm(Alarmas::A_COMP, rawAlarmas.comp);
 
-        raw = filtroRC_counts(raw_unfiltered);
+        raw = raw_unfiltered;// filtroRC_counts(raw_unfiltered);
 
         // raw ya es 24 bits con signo extendido (bipolar)
         // Fuerza en Newtons usando la calibración 0 kg / 1 kg
-        float fuerzaN = raw_unfiltered;//raw;
+        float fuerzaN = raw;
 
         fuerzaBase = fuerzaN; // Ajusta este offset según tu tara
       }
@@ -215,10 +214,9 @@ void SensorUpdateLoop() {
     configSnapshot = cellConfigActual;
     cellConfigMutex.unlock();
 
-    float Finternal = g_modoCompresometro ? -fabsf(fuerzaBase) : fuerzaBase;
-
-    Finternal = applyCellPoly(Finternal, configSnapshot);
-    ultimaFuerzaLeida = Finternal;
+  
+    fuerzaBase = applyCellPoly(fuerzaBase, configSnapshot);
+    ultimaFuerzaLeida = fuerzaBase;
 
     DatosSensor snapshotSensor = {};
     snapshotSensor.fuerza = ultimaFuerzaLeida;
@@ -242,8 +240,7 @@ void SensorUpdateLoop() {
     sensorData.timestamp = millis();
     sensorDataMutex.unlock();
 
-    // Periodo de muestreo del lazo de sensores (~10 ms).
-    osDelay(0);
+    
   }
 }
 

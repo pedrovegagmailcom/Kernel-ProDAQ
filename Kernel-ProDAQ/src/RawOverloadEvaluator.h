@@ -12,7 +12,7 @@ class RawOverloadEvaluator {
   void setThresholds(int32_t onCountsAbs, int32_t offCountsAbs);
   void setTiming(uint16_t nOn, uint16_t nOff);
 
-  RawOverloadResult update(int32_t rawSigned, bool modoCompresometro);
+  RawOverloadResult update(int32_t rawSigned);
 
  private:
   struct SideState {

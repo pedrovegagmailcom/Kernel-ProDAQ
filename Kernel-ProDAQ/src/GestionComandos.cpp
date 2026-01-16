@@ -650,11 +650,7 @@ void CommandR1(float param1, float param2) {
 }
 
 void CommandR2(float param1, float param2) {
-    if (encoderStepsPerMillimeter <= 0.0f) {
-        Serial.println("ERR");
-        return;
-    }
-
+    
     sensorDataMutex.lock();
     float extension = sensorData.extension;
     sensorDataMutex.unlock();

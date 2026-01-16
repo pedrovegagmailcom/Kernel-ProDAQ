@@ -50,10 +50,8 @@ void RawOverloadEvaluator::updateSide(SideState& side, bool candidate, int32_t a
   }
 }
 
-RawOverloadResult RawOverloadEvaluator::update(int32_t rawSigned, bool modoCompresometro) {
-  if (modoCompresometro) {
-    rawSigned = -abs(rawSigned);
-  }
+RawOverloadResult RawOverloadEvaluator::update(int32_t rawSigned) {
+ 
 
   int32_t absCounts = abs(rawSigned);
   bool isTrac = rawSigned >= 0;
