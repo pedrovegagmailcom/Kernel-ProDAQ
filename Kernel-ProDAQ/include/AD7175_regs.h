@@ -40,7 +40,6 @@ enum AD7175_registers {
     Gain_2,
     Gain_3,
     Gain_4,
-    Communications_Register,
     AD7175_REG_NO
 };
 

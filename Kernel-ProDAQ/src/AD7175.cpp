@@ -7,7 +7,7 @@ st_reg AD7175_regs[] =
     /* Dirección  , Valor    , Tamaño en bytes */
     /*0x00*/ {AD717X_STATUS_REG     , 0x00    , 1}, // Status_Register
     /*0x01*/ {AD717X_ADCMODE_REG    , 0x802C  , 2}, // ADC_Mode_Register
-    /*0x02*/ {AD717X_IFMODE_REG     , 0x0104  , 2}, // Interface_Mode_Reg
+    /*0x02*/ {AD717X_IFMODE_REG     , 0x0000  , 2}, // Interface_Mode_Reg
     /*0x03*/ {AD717X_REGCHECK_REG   , 0x000000, 3}, // REGCHECK
     /*0x04*/ {AD717X_DATA_REG       , 0x000000, 3}, // Data_Register
     /*0x06*/ {AD717X_GPIOCON_REG    , 0x0400  , 2}, // IOCon_Register
@@ -16,7 +16,10 @@ st_reg AD7175_regs[] =
     /*0x11*/ {AD717X_CHMAP1_REG     , 0x0000  , 2}, // CH_Map_2
     /*0x12*/ {AD717X_CHMAP2_REG     , 0x0000  , 2}, // CH_Map_3
     /*0x13*/ {AD717X_CHMAP3_REG     , 0x0000  , 2}, // CH_Map_4
-    /*0x20*/ {AD717X_SETUPCON0_REG  , 0x1300  , 2}, // Setup_Config_1 
+    /*0x20*/ {AD717X_SETUPCON0_REG  , (AD717X_SETUP_CONF_REG_AINBUF_P |
+                                      AD717X_SETUP_CONF_REG_AINBUF_N |
+                                      AD717X_SETUP_CONF_REG_REF_SEL(0) |
+                                      AD717X_SETUP_CONF_REG_GAIN(0)), 2}, // Setup_Config_1 
     /*0x21*/ {AD717X_SETUPCON1_REG  , 0x0000  , 2}, // Setup_Config_2
     /*0x22*/ {AD717X_SETUPCON2_REG  , 0x0000  , 2}, // Setup_Config_3
     /*0x23*/ {AD717X_SETUPCON3_REG  , 0x0000  , 2}, // Setup_Config_4
@@ -34,13 +37,13 @@ st_reg AD7175_regs[] =
     /*0x39*/ {AD717X_GAIN1_REG      , 0x555555, 3}, // Gain_2
     /*0x3A*/ {AD717X_GAIN2_REG      , 0x555555, 3}, // Gain_3
     /*0x3B*/ {AD717X_GAIN3_REG      , 0x555555, 3}, // Gain_4
-    /*0xFF*/ {0xFF                  , 0x00    , 1}, // Communications_Register (Verificar dirección correcta)
 };
 
 
 // AD7175 State Structure
 struct AD7175_state {
     uint8_t useCRC;
+    float vref_volts;
 } AD7175_st;
 
 // Chip Select Pin
@@ -52,10 +55,10 @@ SPISettings spiSettings(8000000, MSBFIRST, SPI_MODE3);
 
 int32_t AD7175_ReadRegister(st_reg* pReg) {
     uint8_t buffer[8] = {0};
-    uint8_t crc = 0;
+    uint8_t rx_crc = 0;
 
     // Build the Command word
-    buffer[0] = COMM_REG_WEN | COMM_REG_RD | pReg->addr;
+    buffer[0] = COMM_REG_WEN | COMM_REG_RD | (pReg->addr & 0x3F);
 
     // Begin SPI Transaction
     SPI.beginTransaction(spiSettings);
@@ -69,9 +72,9 @@ int32_t AD7175_ReadRegister(st_reg* pReg) {
 
     // Read CRC if enabled
     if (AD7175_st.useCRC) {
-        buffer[pReg->size + 1] = SPI.transfer(0x00);
-        crc = AD717X_ComputeCRC8(buffer, pReg->size + 2);
-        if (crc != 0) {
+        rx_crc = SPI.transfer(0x00);
+        uint8_t calc_crc = AD717X_ComputeCRC8(buffer, pReg->size + 1);
+        if (calc_crc != rx_crc) {
             SPI.endTransaction();
             digitalWrite(AD7175_CS_PIN, HIGH);
             return -1; // CRC Error
@@ -97,7 +100,7 @@ int32_t AD7175_WriteRegister(st_reg reg) {
     uint8_t crc = 0;
 
     // Build the Command word
-    wrBuf[0] = COMM_REG_WEN | COMM_REG_WR | reg.addr;
+    wrBuf[0] = COMM_REG_WEN | COMM_REG_WR | (reg.addr & 0x3F);
 
     // Fill the write buffer
     int32_t regValue = reg.value;
@@ -117,7 +120,8 @@ int32_t AD7175_WriteRegister(st_reg reg) {
     digitalWrite(AD7175_CS_PIN, LOW);
 
     // Send Command and data
-    for (uint8_t i = 0; i < (AD7175_st.useCRC ? reg.size + 2 : reg.size + 1); i++) {
+    uint8_t tx_len = reg.size + 1 + (AD7175_st.useCRC ? 1 : 0);
+    for (uint8_t i = 0; i < tx_len; i++) {
         SPI.transfer(wrBuf[i]);
     }
 
@@ -163,23 +167,26 @@ int32_t AD7175_ReadData(int32_t* pData) {
     return 0;
 }
 
-#define VREF_VALUE_F (3.3f)
+static float AD7175_GetGainFromSetup(uint16_t setupcon) {
+    switch ((setupcon & AD717X_SETUP_CONF_REG_GAIN_MSK) >> 0) {
+        case 0: return 1.0f;
+        case 1: return 2.0f;
+        case 2: return 4.0f;
+        case 3: return 8.0f;
+        case 4: return 16.0f;
+        case 5: return 32.0f;
+        case 6: return 64.0f;
+        case 7: return 128.0f;
+        default: return 1.0f;
+    }
+}
+
 float AD7175_Voltage(int32_t adc_code) {
-  
-    float voltage;
+    const float full_scale = static_cast<float>(1 << 23);
+    const uint16_t setupcon0 = static_cast<uint16_t>(AD7175_regs[Setup_Config_1].value);
+    const float gain = AD7175_GetGainFromSetup(setupcon0);
 
-    // Constante para el rango de códigos (2^(N-1) para bipolar)
-    // 2^23 = 8388608
-    const float mid_code_f = (float)(1 << (24 - 1));
-    // Rango total de voltaje es Vref * (2^(N-1))
-
-    // Fórmula: Voltaje = (Código ADC / (2^(N-1))) * (Vref / 2) 
-    // O simplemente: Voltaje = (Código ADC * Vref) / 2^N
-
-    // Se puede simplificar a:
-    voltage = ((float)adc_code * VREF_VALUE_F) / (float)(1 << (24 - 1));
-
-    return voltage;
+    return (static_cast<float>(adc_code) / full_scale) * (AD7175_st.vref_volts / gain);
 }
 
 int32_t AD7175_ReadData_org(int32_t* pData) {
@@ -194,17 +201,15 @@ int32_t AD7175_ReadData_org(int32_t* pData) {
 
 uint8_t AD717X_ComputeCRC8(uint8_t* pBuf, uint8_t bufSize) {
     uint8_t crc = 0;
-    while (bufSize) {
-        for (uint8_t i = 0x80; i != 0; i >>= 1) {
-            if (((crc & 0x80) != 0) != ((*pBuf & i) != 0)) {
-                crc <<= 1;
-                crc ^= AD7175_CRC_POLYNOMIAL;
+    while (bufSize--) {
+        crc ^= *pBuf++;
+        for (uint8_t i = 0; i < 8; i++) {
+            if (crc & 0x80) {
+                crc = static_cast<uint8_t>((crc << 1) ^ AD7175_CRC_POLYNOMIAL);
             } else {
                 crc <<= 1;
             }
         }
-        pBuf++;
-        bufSize--;
     }
     return crc;
 }
@@ -290,8 +295,14 @@ int32_t AD7175_Setup(void) {
     
     AD717X_Reset();
 
+    AD7175_st.useCRC = 0;
+    AD7175_st.vref_volts = 3.3f;
+
     // Read ID register
     if (AD7175_ReadRegister(&AD7175_regs[ID_st_reg]) != 0)
+        return -1;
+    const uint16_t id = static_cast<uint16_t>(AD7175_regs[ID_st_reg].value);
+    if ((id & AD717X_ID_REG_MASK) != AD7175_2_ID_REG_VALUE)
         return -1;
 
     // Configure ADC Mode Register
@@ -302,9 +313,24 @@ int32_t AD7175_Setup(void) {
 
 
     // Configure Interface Mode Register
-    AD7175_regs[Interface_Mode_Register].value &= ~(/*CRC_EN|*/ AD717X_IFMODE_REG_XOR_EN);
-    AD7175_WriteRegister(AD7175_regs[Interface_Mode_Register]);
-    AD7175_st.useCRC = 0; // deshabilitar comprobación
+    if (AD7175_ReadRegister(&AD7175_regs[Interface_Mode_Register]) != 0)
+        return -1;
+    AD7175_regs[Interface_Mode_Register].value &=
+        ~(AD717X_IFMODE_REG_XOR_EN | AD717X_IFMODE_REG_DOUT_RESET);
+    AD7175_regs[Interface_Mode_Register].value |= AD717X_IFMODE_REG_CRC_EN;
+    if (AD7175_WriteRegister(AD7175_regs[Interface_Mode_Register]) != 0)
+        return -1;
+    AD7175_st.useCRC = 1;
+    if (AD7175_ReadRegister(&AD7175_regs[Interface_Mode_Register]) != 0)
+        return -1;
+    if ((AD7175_regs[Interface_Mode_Register].value & AD717X_IFMODE_REG_CRC_EN) == 0)
+        return -1;
+
+    if (AD7175_ReadRegister(&AD7175_regs[ID_st_reg]) != 0)
+        return -1;
+    const uint16_t id_crc = static_cast<uint16_t>(AD7175_regs[ID_st_reg].value);
+    if ((id_crc & AD717X_ID_REG_MASK) != AD7175_2_ID_REG_VALUE)
+        return -1;
 
 
 
@@ -335,8 +361,10 @@ int32_t AD7175_Setup(void) {
     // Perform Calibration
     uint64_t offset_sum = 0;
     for (int i = 0; i < 16; i++) {
-        AD717X_Calibration(ADC_CAL_INTER_OFFSET);
-        delay(10);
+        if (AD717X_Calibration(ADC_CAL_INTER_OFFSET) != 0)
+            return -1;
+        if (AD7175_WaitForReady(500) != 0)
+            return -1;
         if (AD7175_ReadRegister(&AD7175_regs[Offset_1]) != 0)
             return -1;
         offset_sum += AD7175_regs[Offset_1].value;

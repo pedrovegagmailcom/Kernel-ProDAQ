@@ -151,6 +151,8 @@
 /* Setup Configuration Register 0-3 bits */
 #define AD717X_SETUP_CONF_REG_BI_UNIPOLAR  (1 << 12)
 #define AD717X_SETUP_CONF_REG_REF_SEL(x)   (((x) & 0x3) << 4)
+#define AD717X_SETUP_CONF_REG_GAIN(x)      (((x) & 0x7) << 0)
+#define AD717X_SETUP_CONF_REG_GAIN_MSK     (0x7 << 0)
 
 /* Setup Configuration Register additional bits for AD7173-8 */
 #define AD717X_SETUP_CONF_REG_REF_BUF(x)  (((x) & 0x3) << 10)
@@ -193,7 +195,6 @@
 #define AD4116_ID_REG_VALUE   0x34D0
 
 #endif // AD717X_COMMON_REGS_H
-
 
 
 
